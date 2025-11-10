@@ -1,0 +1,31 @@
+{
+  "name": "voicecn",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "bun@1.1.26",
+  "type": "module",
+  "scripts": {
+    "build": "bun workspaces run build",
+    "dev": "bun workspaces run dev",
+    "lint": "bun workspaces run lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "bun workspaces run clean"
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "devDependencies": {
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^25.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
+    "vue": "^3.5.12"
+  }
+}

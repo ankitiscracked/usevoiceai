@@ -1,0 +1,78 @@
+import { VoiceSessionManager } from "../session/voiceSessionManager";
+import type {
+  AgentProcessor,
+  TranscriptionProvider,
+  TtsStreamer
+} from "../types";
+
+export interface NodeWebSocketLike {
+  readyState: number;
+  send: (data: string | ArrayBuffer | Buffer) => void;
+  close: (code?: number, reason?: string) => void;
+  on: (
+    event: "message" | "close" | "error",
+    handler: (...args: any[]) => void
+  ) => void;
+}
+
+export interface NodeWebSocketAdapterOptions {
+  ws: NodeWebSocketLike;
+  userId: string;
+  transcriptionProvider: TranscriptionProvider;
+  agentProcessor: AgentProcessor;
+  ttsStreamer?: TtsStreamer;
+}
+
+const NODE_WS_OPEN_STATE = 1;
+
+export function attachNodeWebSocketSession({
+  ws,
+  userId,
+  transcriptionProvider,
+  agentProcessor,
+  ttsStreamer
+}: NodeWebSocketAdapterOptions) {
+  const manager = new VoiceSessionManager({
+    userId,
+    transcriptionProvider,
+    agentProcessor,
+    ttsStreamer,
+    sendJson: (payload) => {
+      if (ws.readyState === NODE_WS_OPEN_STATE) {
+        ws.send(JSON.stringify(payload));
+      }
+    },
+    sendBinary: (chunk) => {
+      if (ws.readyState === NODE_WS_OPEN_STATE) {
+        ws.send(chunk);
+      }
+    },
+    closeSocket: (code, reason) => {
+      ws.close(code, reason);
+    }
+  });
+
+  manager.handleOpen();
+
+  ws.on("message", (data: Buffer | ArrayBuffer | string) => {
+    if (typeof data === "string") {
+      manager.handleMessage(data);
+      return;
+    }
+    if (data instanceof ArrayBuffer) {
+      manager.handleMessage(data);
+      return;
+    }
+    manager.handleMessage(data.buffer.slice(0) as ArrayBuffer);
+  });
+
+  ws.on("close", (code: number, reason: Buffer) => {
+    manager.handleClose(code, reason?.toString());
+  });
+
+  ws.on("error", (error: Error) => {
+    manager.handleClose(1011, error.message);
+  });
+
+  return manager;
+}

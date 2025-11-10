@@ -1,0 +1,26 @@
+{
+  "name": "@voicecn/vue",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "peerDependencies": {
+    "vue": "^3.4.0"
+  },
+  "dependencies": {
+    "@voicecn/core": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --dts --clean",
+    "dev": "tsup src/index.ts --dts --watch",
+    "test": "vitest run",
+    "lint": "echo \"todo: lint vue\"",
+    "clean": "rm -rf dist"
+  }
+}

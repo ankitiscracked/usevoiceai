@@ -1,0 +1,31 @@
+{
+  "name": "@voicecn/cartesia",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --dts --clean --format esm --tsconfig tsconfig.build.json",
+    "dev": "tsup src/index.ts --dts --watch --format esm --tsconfig tsconfig.build.json",
+    "test": "vitest run",
+    "lint": "echo \"todo: lint cartesia\"",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@voicecn/server": "workspace:*"
+  },
+  "peerDependencies": {
+    "@cartesia/cartesia-js": "^2.2.9"
+  },
+  "peerDependenciesMeta": {
+    "@cartesia/cartesia-js": {
+      "optional": true
+    }
+  }
+}

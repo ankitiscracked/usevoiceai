@@ -1,0 +1,23 @@
+{
+  "name": "@voicecn/example-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev src/worker.ts --local",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@cartesia/cartesia-js": "^2.2.9",
+    "@deepgram/sdk": "^4.11.2",
+    "@voicecn/cartesia": "workspace:*",
+    "@voicecn/core": "workspace:*",
+    "@voicecn/deepgram": "workspace:*",
+    "@voicecn/server": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241004.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^4.46.0"
+  }
+}
