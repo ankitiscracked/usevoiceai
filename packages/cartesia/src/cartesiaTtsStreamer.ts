@@ -1,4 +1,4 @@
-import type { TtsStreamer } from "@voicecn/server";
+import type { TtsStreamer } from "@usevoice/server";
 import { CartesiaClient } from "@cartesia/cartesia-js";
 
 const DEFAULT_MODEL_ID = "sonic-3";
@@ -10,16 +10,28 @@ type CartesiaStreamEvent =
   | { type: "error"; error?: string }
   | { type: string; data?: string; error?: string };
 
+type CartesiaClientLike = {
+  tts: {
+    sse: (options: Record<string, unknown>) => Promise<
+      AsyncIterable<CartesiaStreamEvent> | AsyncIterator<CartesiaStreamEvent>
+    >;
+  };
+};
+
+type CartesiaClientFactory = (apiKey: string) => CartesiaClientLike;
+
 export interface CartesiaTtsConfig {
   apiKey: string;
   modelId?: string;
   voiceId?: string;
+  clientFactory?: CartesiaClientFactory;
 }
 
 export class CartesiaTtsStreamer implements TtsStreamer {
   private readonly apiKey: string;
   private readonly modelId: string;
   private readonly voiceId: string;
+  private readonly createClient: CartesiaClientFactory;
 
   constructor(config: CartesiaTtsConfig) {
     if (!config?.apiKey) {
@@ -28,6 +40,9 @@ export class CartesiaTtsStreamer implements TtsStreamer {
     this.apiKey = config.apiKey;
     this.voiceId = config.voiceId ?? DEFAULT_VOICE_ID;
     this.modelId = config.modelId ?? DEFAULT_MODEL_ID;
+    this.createClient =
+      config.clientFactory ??
+      ((apiKey: string) => new CartesiaClient({ apiKey }));
   }
 
   async stream(
@@ -40,7 +55,7 @@ export class CartesiaTtsStreamer implements TtsStreamer {
       return;
     }
 
-    const client = new CartesiaClient({ apiKey: this.apiKey });
+    const client = this.createClient(this.apiKey);
     let stream:
       | AsyncIterable<CartesiaStreamEvent>
       | AsyncIterator<CartesiaStreamEvent>
