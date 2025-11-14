@@ -1,12 +1,11 @@
 import { onBeforeUnmount, shallowRef, readonly } from "vue";
 import {
-  VoiceCommandController,
   VoiceCommandResult,
   VoiceCommandStateStore,
-  VoiceSocketClient,
   type VoiceCommandStatus,
   type VoiceSocketClientOptions
 } from "@usevoice/core";
+import { createVoiceCommandBridge } from "./createVoiceCommandBridge";
 
 export interface UseVoiceCommandOptions {
   socket?: VoiceSocketClient;
@@ -20,24 +19,21 @@ export interface UseVoiceCommandOptions {
 }
 
 export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
-  const store = options.state ?? new VoiceCommandStateStore();
-  const socket =
-    options.socket ??
-    new VoiceSocketClient({
-      ...(options.socketOptions ?? {})
-    });
-
-  const controller = new VoiceCommandController({
-    socket,
-    state: store,
+  const bridge = createVoiceCommandBridge({
+    socket: options.socket,
+    socketOptions: options.socketOptions,
+    state: options.state,
     mediaDevices: options.mediaDevices,
     notifications: options.notifications
   });
 
+  const store = bridge.store;
+  const controller = bridge.controller;
+
   const status = shallowRef<VoiceCommandStatus>(store.getStatus());
   const results = shallowRef<VoiceCommandResult[]>(store.getResults());
   const queryResponse = shallowRef<VoiceCommandResult | null>(
-    controller.getQueryResponse()
+    bridge.getQueryResponse()
   );
   const audioStream = shallowRef(store.getAudioStream());
   const isAudioPlaying = shallowRef(store.isAudioPlaying());
@@ -47,10 +43,6 @@ export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
   });
   const unsubResults = store.subscribeResults((next) => {
     results.value = next;
-    const latest = next.find((item) => item.data?.intent === "fetch") ?? null;
-    if (latest) {
-      queryResponse.value = latest;
-    }
   });
   const unsubAudio = store.subscribeAudioStream((stream) => {
     audioStream.value = stream;
@@ -59,12 +51,17 @@ export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
     isAudioPlaying.value = playing;
   });
 
+  const unsubQuery = bridge.subscribeQueryResponse((result) => {
+    queryResponse.value = result;
+  });
+
   onBeforeUnmount(() => {
     unsubStatus();
     unsubResults();
     unsubAudio();
     unsubPlayback();
-    controller.destroy();
+    unsubQuery();
+    bridge.destroy();
   });
 
   const startRecording = async () => controller.startRecording();

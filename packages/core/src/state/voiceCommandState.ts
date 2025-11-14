@@ -1,7 +1,7 @@
 import type {
   VoiceCommandResult,
   VoiceCommandStage,
-  VoiceCommandStatus
+  VoiceCommandStatus,
 } from "../types";
 import type { VoiceAudioStream } from "../audio/voiceAudioStream";
 import { SimpleEventEmitter } from "../utils/eventEmitter";
@@ -53,6 +53,7 @@ export class VoiceCommandStateStore {
   }
 
   setStatus(patch: Partial<VoiceCommandStatus>) {
+    console.log("setStatus", patch);
     this.status = { ...this.status, ...patch };
     this.emitter.emit("change", this.status);
   }

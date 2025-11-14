@@ -11,8 +11,6 @@ export interface VoiceCommandStatus {
   transcript?: string;
   error?: string;
   startedAt?: number;
-  realtimeStatus?: string;
-  realtimeText?: string;
 }
 
 export interface VoiceCommandResult {

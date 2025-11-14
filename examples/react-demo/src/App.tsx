@@ -15,12 +15,12 @@ export default function App() {
     if (useMockSocket) {
       return {
         url: "ws://demo.local",
-        WebSocketImpl: DemoWebSocket
+        WebSocketImpl: DemoWebSocket,
       };
     }
 
     return {
-      url: wsUrl as string
+      url: wsUrl as string,
     };
   }, [useMockSocket, wsUrl]);
 
@@ -30,9 +30,9 @@ export default function App() {
     stopRecording,
     results,
     audioStream,
-    isAudioPlaying
+    isAudioPlaying,
   } = useVoiceCommand({
-    socketOptions
+    socketOptions,
   });
 
   useEffect(() => {
@@ -98,10 +98,11 @@ export default function App() {
     <div style={{ fontFamily: "sans-serif", maxWidth: 520, margin: "0 auto" }}>
       <h1>useVoice React Demo</h1>
       <p>
-        Mode: <strong>{useMockSocket ? "Mock socket" : "Cloudflare worker"}</strong>
+        Mode:{" "}
+        <strong>{useMockSocket ? "Mock socket" : "Cloudflare worker"}</strong>
       </p>
       <p>Stage: {status.stage}</p>
-      <p>Live transcript: {status.realtimeText ?? "—"}</p>
+      <p>Live transcript: {status.transcript ?? "—"}</p>
       <p>Final transcript: {status.transcript ?? "—"}</p>
       <p>
         Response audio:{" "}
@@ -118,7 +119,7 @@ export default function App() {
               height: 8,
               background: "#dbeafe",
               borderRadius: 999,
-              overflow: "hidden"
+              overflow: "hidden",
             }}
           >
             <div
@@ -126,7 +127,7 @@ export default function App() {
                 height: "100%",
                 width: `${Math.min(100, Math.round(playbackLevel * 120))}%`,
                 background: "#2563eb",
-                transition: "width 120ms linear"
+                transition: "width 120ms linear",
               }}
             />
           </div>

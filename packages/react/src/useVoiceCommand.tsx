@@ -1,13 +1,19 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
 import {
-  VoiceCommandController,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useSyncExternalStore,
+} from "react";
+import {
   VoiceCommandResult,
-  VoiceCommandStateStore,
-  VoiceSocketClient,
   type VoiceSocketClientOptions,
   type VoiceCommandStatus,
-  type VoiceAudioStream
+  type VoiceAudioStream,
+  VoiceSocketClient,
+  VoiceCommandStateStore,
 } from "@usevoice/core";
+import { createVoiceCommandBridge } from "./createVoiceCommandBridge";
 
 export interface UseVoiceCommandOptions {
   socket?: VoiceSocketClient;
@@ -35,84 +41,72 @@ export interface UseVoiceCommandResult {
 export function useVoiceCommand(
   options: UseVoiceCommandOptions = {}
 ): UseVoiceCommandResult {
-  const store = useMemo(
-    () => options.state ?? new VoiceCommandStateStore(),
-    [options.state]
-  );
-  const socket = useMemo(
+  const bridge = useMemo(
     () =>
-      options.socket ??
-      new VoiceSocketClient({
-        ...(options.socketOptions ?? {})
+      createVoiceCommandBridge({
+        socket: options.socket,
+        socketOptions: options.socketOptions,
+        state: options.state,
+        mediaDevices: options.mediaDevices,
+        notifications: options.notifications,
       }),
-    [options.socket, options.socketOptions]
+    [
+      options.socket,
+      options.socketOptions,
+      options.state,
+      options.mediaDevices,
+      options.notifications?.success,
+      options.notifications?.error,
+    ]
   );
 
-  const controller = useMemo(() => {
-    return new VoiceCommandController({
-      socket,
-      state: store,
-      notifications: options.notifications,
-      mediaDevices: options.mediaDevices
-    });
-  }, [
-    socket,
-    store,
-    options.mediaDevices,
-    options.notifications?.success,
-    options.notifications?.error
-  ]);
+  const store = bridge.store;
 
-  const [status, setStatus] = useState<VoiceCommandStatus>(store.getStatus());
-  const [results, setResults] = useState<VoiceCommandResult[]>(store.getResults());
+  const status = useSyncExternalStore(
+    (callback) => store.subscribe(callback),
+    () => store.getStatus()
+  );
+
+  console.log("reactive status", status);
+
+  const results = useSyncExternalStore(
+    (callback) => store.subscribeResults(callback),
+    () => store.getResults()
+  );
+  const audioStream = useSyncExternalStore(
+    (callback) => store.subscribeAudioStream(callback),
+    () => store.getAudioStream()
+  );
+  const isAudioPlaying = useSyncExternalStore(
+    (callback) => store.subscribePlayback(callback),
+    () => store.isAudioPlaying()
+  );
+
   const [queryResponse, setQueryResponse] = useState<VoiceCommandResult | null>(
-    controller.getQueryResponse()
-  );
-  const [audioStream, setAudioStream] = useState<VoiceAudioStream | null>(
-    store.getAudioStream()
-  );
-  const [isAudioPlaying, setAudioPlaying] = useState<boolean>(
-    store.isAudioPlaying()
+    bridge.getQueryResponse()
   );
 
   useEffect(() => {
-    const unsubStatus = store.subscribe(setStatus);
-    const unsubResults = store.subscribeResults((next) => {
-      setResults(next);
-      const latest = next.find(
-        (item) => item.data?.intent === "fetch"
-      );
-      if (latest) {
-        setQueryResponse(latest);
-      }
-    });
-    const unsubAudio = store.subscribeAudioStream(setAudioStream);
-    const unsubPlayback = store.subscribePlayback(setAudioPlaying);
-    return () => {
-      unsubStatus();
-      unsubResults();
-      unsubAudio();
-      unsubPlayback();
-    };
-  }, [store]);
+    const unsubQuery = bridge.subscribeQueryResponse(setQueryResponse);
+    return () => unsubQuery();
+  }, [bridge]);
 
   useEffect(() => {
-    setQueryResponse(controller.getQueryResponse());
-  }, [controller]);
-
-  useEffect(() => () => controller.destroy(), [controller]);
+    bridge.init();
+    return () => bridge.destroy();
+  }, [bridge]);
 
   const startRecording = useCallback(async () => {
-    await controller.startRecording();
-  }, [controller]);
+    await bridge.controller.startRecording();
+  }, [bridge]);
 
   const stopRecording = useCallback(() => {
-    controller.stopRecording();
-  }, [controller]);
+    bridge.controller.stopRecording();
+  }, [bridge]);
 
   const cancelRecording = useCallback(async () => {
-    await controller.cancelRecording();
-  }, [controller]);
+    await bridge.controller.cancelRecording();
+  }, [bridge]);
 
   return {
     status,
@@ -123,6 +117,6 @@ export function useVoiceCommand(
     startRecording,
     stopRecording,
     cancelRecording,
-    recorderStream: controller.getRecorderStream()
+    recorderStream: bridge.controller.getRecorderStream(),
   };
 }

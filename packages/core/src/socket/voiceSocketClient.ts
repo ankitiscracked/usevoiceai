@@ -26,9 +26,6 @@ export class VoiceSocketClient {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
 
   private emitter = new SimpleEventEmitter<SocketEvents>();
-  private listeners = new Set<
-    (event: VoiceSocketEvent | ArrayBuffer) => void
-  >();
 
   constructor(options: VoiceSocketClientOptions = {}) {
     this.options = {
@@ -51,8 +48,16 @@ export class VoiceSocketClient {
   }
 
   subscribe(handler: (event: VoiceSocketEvent | ArrayBuffer) => void) {
-    this.listeners.add(handler);
-    return () => this.listeners.delete(handler);
+    const offMessage = this.emitter.on("message", (payload) => handler(payload));
+    const offBinary = this.emitter.on("binary", (payload) => handler(payload));
+    const offClose = this.emitter.on("close", (payload) =>
+      handler({ type: "closed", data: payload })
+    );
+    return () => {
+      offMessage();
+      offBinary();
+      offClose();
+    };
   }
 
   async ensureConnection() {
@@ -90,7 +95,6 @@ export class VoiceSocketClient {
         try {
           const parsed = JSON.parse(data) as VoiceSocketEvent;
           this.emitter.emit("message", parsed);
-          this.listeners.forEach((listener) => listener(parsed));
         } catch (error) {
           this.emitter.emit(
             "error",
@@ -99,11 +103,9 @@ export class VoiceSocketClient {
         }
       } else if (data instanceof ArrayBuffer) {
         this.emitter.emit("binary", data);
-        this.listeners.forEach((listener) => listener(data));
       } else if (data instanceof Blob) {
         data.arrayBuffer().then((buffer) => {
           this.emitter.emit("binary", buffer);
-          this.listeners.forEach((listener) => listener(buffer));
         });
       }
     };
@@ -123,12 +125,6 @@ export class VoiceSocketClient {
         code: event.code,
         reason: event.reason
       });
-      this.listeners.forEach((listener) =>
-        listener({
-          type: "closed",
-          data: { code: event.code, reason: event.reason }
-        })
-      );
     };
 
     return ws;
