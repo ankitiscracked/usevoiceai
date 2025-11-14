@@ -68,27 +68,43 @@ const { audioStream, isAudioPlaying } = useVoiceCommand({ socketOptions });
 
 useEffect(() => {
   if (!audioStream) return;
+  const stream = audioStream;
   let cancelled = false;
+  const release = (() => {
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      stream.release?.();
+    };
+  })();
 
   (async () => {
-    await player.start();
-    for await (const chunk of audioStream) {
-      if (cancelled) break;
-      await player.addChunk(chunk);
+    try {
+      await player.start();
+      for await (const chunk of stream) {
+        if (cancelled) break;
+        await player.addChunk(chunk);
+      }
+      player.finish();
+      await player.waitUntilIdle();
+    } finally {
+      release();
     }
-    player.finish();
-    await player.waitUntilIdle();
   })();
 
   return () => {
     cancelled = true;
+    release();
     player.reset();
   };
 }, [audioStream, player]);
 ```
 
 `isAudioPlaying` mirrors the state store flag so you can drive UI affordances (VU meters, “speaking…”
-labels, etc.) without manually tracking analyser nodes.
+labels, etc.) without manually tracking analyser nodes. Calling `audioStream.release()` tells the
+controller that playback fully drained, so the `tts.end` handler waits for the Web Audio buffers to
+finish before clearing the stream reference.
 
 ## Results and intent payloads
 

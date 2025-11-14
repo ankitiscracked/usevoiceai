@@ -68,26 +68,43 @@ const player = useTtsPlayer();
 
 useEffect(() => {
   if (!audioStream) return;
+  const stream = audioStream;
   let cancelled = false;
+  const release = (() => {
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      stream.release?.();
+    };
+  })();
 
   (async () => {
-    await player.start();
-    for await (const chunk of audioStream) {
-      if (cancelled) break;
-      await player.addChunk(chunk);
+    try {
+      await player.start();
+      for await (const chunk of stream) {
+        if (cancelled) break;
+        await player.addChunk(chunk);
+      }
+      player.finish();
+      await player.waitUntilIdle();
+    } finally {
+      release();
     }
-    player.finish();
   })();
 
   return () => {
     cancelled = true;
+    release();
     player.reset();
   };
 }, [audioStream, player]);
 ```
 
 The worker emits `tts.start` before sending raw PCM16 chunks, and `tts.end` after the response
-finishes. The hook above consumes the async iterable and schedules the buffers via the Web Audio API.
+finishes. The hook above consumes the async iterable and schedules the buffers via the Web Audio API,
+then calls `stream.release()` so the controller knows it can tear down the stream reference only
+after playback drains.
 
 ## 5. Explore more examples
 

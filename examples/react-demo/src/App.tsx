@@ -41,7 +41,16 @@ export default function App() {
       return;
     }
     let isCancelled = false;
-    const iterator = audioStream[Symbol.asyncIterator]();
+    const stream = audioStream;
+    const iterator = stream[Symbol.asyncIterator]();
+    let hasReleased = false;
+    const releaseStream = () => {
+      if (hasReleased) {
+        return;
+      }
+      hasReleased = true;
+      stream.release?.();
+    };
 
     (async () => {
       try {
@@ -64,12 +73,15 @@ export default function App() {
       } catch (error) {
         console.warn("Unable to play TTS audio", error);
         ttsPlayer.finish(true);
+      } finally {
+        releaseStream();
       }
     })();
 
     return () => {
       isCancelled = true;
       iterator.return?.();
+      releaseStream();
       ttsPlayer.reset();
       setPlaybackLevel(0);
     };

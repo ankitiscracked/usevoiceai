@@ -168,16 +168,17 @@ export class VoiceCommandController {
           channels: (data?.channels as number) ?? 1,
           mimeType: (data?.mimeType as string) ?? "audio/raw",
         });
+        this.attachAudioStreamHandlers(this.audioStream);
         this.store.setAudioStream(this.audioStream);
         this.store.setAudioPlayback(true);
         break;
       case "tts.end":
         if (data?.errored) {
           this.closeAudioStream(new Error("tts stream ended with error"));
+          this.store.setAudioPlayback(false);
         } else {
-          this.closeAudioStream();
+          this.closeAudioStream(undefined, { waitForRelease: true });
         }
-        this.store.setAudioPlayback(false);
         break;
       case "timeout":
         this.options.socket.close();
@@ -212,16 +213,38 @@ export class VoiceCommandController {
     }
   }
 
-  private closeAudioStream(error?: Error) {
-    if (this.audioStream) {
-      if (error) {
-        this.audioStream.fail(error);
-      } else {
-        this.audioStream.close();
-      }
+  private closeAudioStream(
+    error?: Error,
+    options?: { waitForRelease?: boolean }
+  ) {
+    if (!this.audioStream) {
+      return;
     }
-    this.audioStream = null;
-    this.store.setAudioStream(null);
+    const stream = this.audioStream;
+    if (error) {
+      stream.fail(error);
+    } else {
+      stream.close();
+    }
+    if (!options?.waitForRelease) {
+      stream.release();
+    }
+    if (this.audioStream === stream) {
+      this.audioStream = null;
+    }
+  }
+
+  private attachAudioStreamHandlers(stream: VoiceAudioStream) {
+    stream.onRelease((released) => {
+      const active = this.store.getAudioStream();
+      if (active && active.id === released.id) {
+        this.store.setAudioStream(null);
+        this.store.setAudioPlayback(false);
+      }
+      if (this.audioStream && this.audioStream.id === released.id) {
+        this.audioStream = null;
+      }
+    });
   }
 
   private async handleComplete(payload: any) {
