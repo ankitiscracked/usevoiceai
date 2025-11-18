@@ -1,16 +1,17 @@
 import { onBeforeUnmount, shallowRef, readonly } from "vue";
 import {
-  VoiceCommandResult,
-  VoiceCommandStateStore,
+  VoiceInputResult,
+  VoiceInputStore,
   type VoiceCommandStatus,
-  type VoiceSocketClientOptions
+  type VoiceSocketClientOptions,
+  VoiceSocketClient,
 } from "@usevoiceai/core";
 import { createVoiceCommandBridge } from "./createVoiceCommandBridge";
 
 export interface UseVoiceCommandOptions {
   socket?: VoiceSocketClient;
   socketOptions?: VoiceSocketClientOptions;
-  state?: VoiceCommandStateStore;
+  state?: VoiceInputStore;
   mediaDevices?: MediaDevices;
   notifications?: {
     success?: (message: string) => void;
@@ -31,8 +32,8 @@ export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
   const controller = bridge.controller;
 
   const status = shallowRef<VoiceCommandStatus>(store.getStatus());
-  const results = shallowRef<VoiceCommandResult[]>(store.getResults());
-  const queryResponse = shallowRef<VoiceCommandResult | null>(
+  const results = shallowRef<VoiceInputResult[]>(store.getResults());
+  const queryResponse = shallowRef<VoiceInputResult | null>(
     bridge.getQueryResponse()
   );
   const audioStream = shallowRef(store.getAudioStream());

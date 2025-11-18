@@ -214,7 +214,8 @@ export class VoiceSession {
       return;
     }
 
-    const text = event.data?.responseText;
+    const text =
+      event.data?.responseText ?? event.data?.formattedContent?.content;
     if (!text) {
       return;
     }

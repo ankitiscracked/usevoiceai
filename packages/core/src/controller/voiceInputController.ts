@@ -36,6 +36,8 @@ export class VoiceInputController {
       onCancel: () => this.handleCancel(),
       mediaDevices: this.options.mediaDevices,
     });
+
+    this.init();
   }
 
   init() {
@@ -221,6 +223,7 @@ export class VoiceInputController {
     };
 
     this.store.pushResult(result);
+    this.voiceInputResult = result;
     this.options.onVoiceInputResult?.(result);
   }
 }

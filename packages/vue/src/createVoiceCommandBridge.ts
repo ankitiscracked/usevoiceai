@@ -1,16 +1,15 @@
 import {
-  VoiceCommandController,
-  VoiceCommandResult,
-  VoiceCommandStateAdapter,
-  VoiceCommandStateStore,
+  VoiceInputController,
+  VoiceInputResult,
+  VoiceInputStore,
   VoiceSocketClient,
-  type VoiceSocketClientOptions
+  type VoiceSocketClientOptions,
 } from "@usevoiceai/core";
 
 interface VoiceCommandBridgeOptions {
   socket?: VoiceSocketClient;
   socketOptions?: VoiceSocketClientOptions;
-  state?: VoiceCommandStateStore;
+  state?: VoiceInputStore;
   mediaDevices?: MediaDevices;
   notifications?: {
     success?: (message: string) => void;
@@ -19,12 +18,12 @@ interface VoiceCommandBridgeOptions {
 }
 
 interface VoiceCommandBridge {
-  store: VoiceCommandStateStore;
-  controller: VoiceCommandController;
+  store: VoiceInputStore;
+  controller: VoiceInputController;
   socket: VoiceSocketClient;
-  getQueryResponse(): VoiceCommandResult | null;
+  getQueryResponse(): VoiceInputResult | null;
   subscribeQueryResponse(
-    handler: (result: VoiceCommandResult | null) => void
+    handler: (result: VoiceInputResult | null) => void
   ): () => void;
   destroy(): void;
 }
@@ -32,55 +31,31 @@ interface VoiceCommandBridge {
 export function createVoiceCommandBridge(
   options: VoiceCommandBridgeOptions = {}
 ): VoiceCommandBridge {
-  const store = options.state ?? new VoiceCommandStateStore();
+  const store = options.state ?? new VoiceInputStore();
   const socket =
-    options.socket ?? new VoiceSocketClient({ ...(options.socketOptions ?? {}) });
-  const adapter = new VoiceCommandStateAdapter(store);
+    options.socket ??
+    new VoiceSocketClient({ ...(options.socketOptions ?? {}) });
 
-  const controller = new VoiceCommandController({
+  const controller = new VoiceInputController({
     socket,
-    adapter,
+    store,
     notifications: options.notifications,
-    mediaDevices: options.mediaDevices
-  });
-
-  let queryResponse: VoiceCommandResult | null =
-    store.getResults().find((item) => item.data?.intent === "fetch") ?? null;
-  const queryHandlers = new Set<
-    (result: VoiceCommandResult | null) => void
-  >();
-
-  const notifyQueryHandlers = () => {
-    queryHandlers.forEach((handler) => handler(queryResponse));
-  };
-
-  const unsubscribeResults = store.subscribeResults((next) => {
-    const latest = next.find((item) => item.data?.intent === "fetch") ?? null;
-    if (latest !== queryResponse) {
-      queryResponse = latest;
-      notifyQueryHandlers();
-    }
+    mediaDevices: options.mediaDevices,
   });
 
   return {
     store,
     controller,
     socket,
-    getQueryResponse: () => queryResponse,
-    subscribeQueryResponse(handler) {
-      queryHandlers.add(handler);
-      handler(queryResponse);
-      return () => {
-        queryHandlers.delete(handler);
-      };
+    getQueryResponse: () => null,
+    subscribeQueryResponse() {
+      return () => {};
     },
     destroy() {
-      unsubscribeResults();
-      queryHandlers.clear();
       controller.destroy();
       if (!options.socket) {
         socket.close();
       }
-    }
+    },
   };
 }

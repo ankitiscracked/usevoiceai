@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { LiveTranscriptionEvents } from "@deepgram/sdk";
 import { DeepgramTranscriptionProvider } from "./deepgramTranscriptionProvider";
 
 class FakeDeepgramStream {
@@ -22,36 +23,40 @@ class FakeDeepgramStream {
 
 describe("DeepgramTranscriptionProvider", () => {
   it("throws without api key", () => {
-    expect(() => new DeepgramTranscriptionProvider({ apiKey: "" })).toThrow();
+    expect(
+      () =>
+        new DeepgramTranscriptionProvider({ apiKey: "", modelId: "nova-3" })
+    ).toThrow();
   });
 
   it("forwards transcript events", async () => {
     const fakeStream = new FakeDeepgramStream();
     const provider = new DeepgramTranscriptionProvider({
       apiKey: "test",
+      modelId: "nova-3",
       clientFactory: () =>
         ({
           listen: {
-            live: () => fakeStream
-          }
-        }) as any
+            live: () => fakeStream,
+          },
+        }) as any,
     });
 
     const transcriptHandler = vi.fn();
     const stream = await provider.createStream({
-      onTranscript: transcriptHandler
+      onTranscript: transcriptHandler,
     });
 
-    fakeStream.emit("open");
-    fakeStream.emit("Results", {
+    fakeStream.emit(LiveTranscriptionEvents.Open);
+    fakeStream.emit(LiveTranscriptionEvents.Transcript, {
       channel: { alternatives: [{ transcript: "hello world" }] },
-      is_final: true
+      is_final: true,
     });
-    fakeStream.emit("close");
+    fakeStream.emit(LiveTranscriptionEvents.Close);
 
     expect(transcriptHandler).toHaveBeenCalledWith({
       transcript: "hello world",
-      isFinal: true
+      isFinal: true,
     });
 
     await stream.finish();

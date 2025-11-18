@@ -51,6 +51,6 @@ describe("@usevoiceai/react useVoiceCommand", () => {
       );
     });
 
-    expect(result.current.status.realtimeText).toBe("streaming");
+    expect(result.current.status.transcript).toBe("streaming");
   });
 });

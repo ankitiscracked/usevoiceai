@@ -10,7 +10,7 @@ async function* fakeStream(events: any[]) {
 describe("CartesiaTtsStreamer", () => {
   it("validates required config", () => {
     expect(
-      () => new CartesiaSpeechProvider({ apiKey: "", voiceId: "" })
+      () => new CartesiaSpeechProvider({ apiKey: "", modelId: "sonic" })
     ).toThrow();
   });
 
@@ -20,6 +20,7 @@ describe("CartesiaTtsStreamer", () => {
 
     const streamer = new CartesiaSpeechProvider({
       apiKey: "key",
+      modelId: "sonic",
       voiceId: "voice-123",
       clientFactory: () =>
         ({

@@ -3,6 +3,19 @@ import { CartesiaClient } from "@cartesia/cartesia-js";
 
 const DEFAULT_VOICE_ID = "66c6b81c-ddb7-4892-bdd5-19b5a7be38e7";
 
+type CartesiaClientLike = {
+  tts: {
+    sse: (
+      options: Record<string, unknown>
+    ) =>
+      | AsyncIterable<CartesiaStreamEvent>
+      | AsyncIterator<CartesiaStreamEvent>
+      | Promise<
+          AsyncIterable<CartesiaStreamEvent> | AsyncIterator<CartesiaStreamEvent>
+        >;
+  };
+};
+
 type CartesiaStreamEvent =
   | { type: "chunk"; data?: string }
   | { type: "done" }
@@ -13,12 +26,14 @@ export interface CartesiaSpeechConfig {
   apiKey?: string;
   modelId: string;
   voiceId?: string;
+  clientFactory?: () => CartesiaClientLike;
 }
 
 export class CartesiaSpeechProvider implements SpeechProvider {
   private readonly apiKey: string;
   private readonly modelId: string;
   private readonly voiceId: string;
+  private readonly clientFactory: () => CartesiaClientLike;
 
   constructor(config: CartesiaSpeechConfig) {
     let apiKey = config.apiKey;
@@ -36,6 +51,10 @@ export class CartesiaSpeechProvider implements SpeechProvider {
     this.apiKey = apiKey;
     this.modelId = config.modelId;
     this.voiceId = config.voiceId ?? DEFAULT_VOICE_ID;
+    this.clientFactory =
+      config.clientFactory ??
+      (() =>
+        new CartesiaClient({ apiKey: this.apiKey }) as unknown as CartesiaClientLike);
   }
 
   async stream(
@@ -48,7 +67,7 @@ export class CartesiaSpeechProvider implements SpeechProvider {
       return;
     }
 
-    const client = new CartesiaClient({ apiKey: this.apiKey });
+    const client = this.clientFactory();
     let stream:
       | AsyncIterable<CartesiaStreamEvent>
       | AsyncIterator<CartesiaStreamEvent>

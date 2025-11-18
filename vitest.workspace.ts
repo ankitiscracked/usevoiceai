@@ -5,6 +5,6 @@ export default defineWorkspace([
   "packages/react/vitest.config.ts",
   "packages/vue/vitest.config.ts",
   "packages/server/vitest.config.ts",
-  "packages/deepgram/vitest.config.ts",
-  "packages/cartesia/vitest.config.ts"
+  "packages/providers/deepgram/vitest.config.ts",
+  "packages/providers/cartesia/vitest.config.ts"
 ]);

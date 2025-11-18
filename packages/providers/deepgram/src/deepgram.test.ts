@@ -4,7 +4,7 @@ import { DeepgramTranscriptionProvider } from "./deepgramTranscriptionProvider";
 
 describe("deepgram helper", () => {
   it("returns a transcription provider instance", () => {
-    const provider = deepgram({ apiKey: "test-key" });
+    const provider = deepgram("nova-3", { apiKey: "test-key" });
     expect(provider).toBeInstanceOf(DeepgramTranscriptionProvider);
   });
 });

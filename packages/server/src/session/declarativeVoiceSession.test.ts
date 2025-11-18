@@ -81,9 +81,11 @@ describe("createVoiceWebSocketSession", () => {
 
     const session = createVoiceSession({
       userId: "user-1",
-      transcription,
-      agent,
-      tts,
+      providers: {
+        transcription,
+        agent,
+        speech: tts,
+      },
       transport: {
         sendJson: (payload) => {
           sentEvents.push(payload);
@@ -150,8 +152,13 @@ describe("createVoiceWebSocketSession", () => {
 
     const session = createVoiceSession({
       userId: "user-2",
-      transcription,
-      agent,
+      providers: {
+        transcription,
+        agent,
+        speech: {
+          stream: async () => {},
+        } as SpeechProvider,
+      },
       transport: {
         sendJson: vi.fn(),
         sendBinary: vi.fn(),

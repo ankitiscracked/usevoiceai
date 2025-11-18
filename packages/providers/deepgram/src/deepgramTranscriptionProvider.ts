@@ -11,6 +11,20 @@ const DeepgramEvents = {
   Error: LiveTranscriptionEvents.Error,
 } as const;
 
+type DeepgramLiveStream = {
+  on: (event: string, handler: (payload?: any) => void) => void;
+  send: (chunk: ArrayBuffer) => void;
+  keepAlive: () => void;
+  finalize: () => void;
+  requestClose: () => void;
+};
+
+type DeepgramClientLike = {
+  listen: {
+    live: (options: Record<string, unknown>) => DeepgramLiveStream;
+  };
+};
+
 export interface DeepgramProviderConfig {
   apiKey?: string;
   modelId: string;
@@ -18,6 +32,7 @@ export interface DeepgramProviderConfig {
   defaultEncoding?: string;
   defaultSampleRate?: number;
   defaultChannels?: number;
+  clientFactory?: () => DeepgramClientLike;
 }
 
 export class DeepgramTranscriptionProvider implements TranscriptionProvider {
@@ -27,6 +42,7 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
   private readonly defaultEncoding: string;
   private readonly defaultSampleRate: number;
   private readonly defaultChannels: number;
+  private readonly clientFactory: () => DeepgramClientLike;
 
   constructor(config: DeepgramProviderConfig) {
     let apiKey = config.apiKey;
@@ -44,6 +60,10 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
     this.defaultEncoding = config.defaultEncoding ?? "opus";
     this.defaultSampleRate = config.defaultSampleRate ?? 48_000;
     this.defaultChannels = config.defaultChannels ?? 1;
+    this.clientFactory =
+      config.clientFactory ??
+      (() =>
+        new DeepgramClient({ key: this.apiKey }) as unknown as DeepgramClientLike);
   }
 
   async createStream({
@@ -53,7 +73,7 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
   }: Parameters<
     TranscriptionProvider["createStream"]
   >[0]): Promise<TranscriptionStream> {
-    const client = new DeepgramClient({ key: this.apiKey });
+    const client = this.clientFactory();
     const stream = client.listen.live({
       model: this.modelId,
       punctuate: true,

@@ -38,11 +38,11 @@ describe("VoiceInputController", () => {
 
     socket.emit({
       type: "complete",
-      data: { intent: "fetch", formattedContent: { foo: "bar" } },
+      data: { responseText: "hello agent" },
     });
 
     expect(store.getResults()).toHaveLength(1);
-    expect(store.getResults()[0].data?.intent).toBe("fetch");
+    expect(store.getResults()[0].data?.responseText).toBe("hello agent");
 
     controller.destroy();
   });
