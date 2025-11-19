@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-router": "^1.74.0",
     "@types/react": "^19.2.4",
     "@types/react-dom": "^19.2.3",
     "@usevoiceai/react": "workspace:*",
