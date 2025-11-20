@@ -1,5 +1,4 @@
 import type { IncomingMessage } from "http";
-import type { WebSocket, WebSocketServer } from "ws";
 import { VoiceSession } from "../session/voiceSession";
 import type {
   AgentProcessor,
@@ -15,10 +14,7 @@ export interface NodeWsSocket {
     event: "message" | "close" | "error",
     handler: (...args: any[]) => void
   ) => void;
-  once?: (
-    event: "close" | "error",
-    handler: (...args: any[]) => void
-  ) => void;
+  once?: (event: "close" | "error", handler: (...args: any[]) => void) => void;
 }
 
 export interface NodeWsSessionOptions {
@@ -40,6 +36,13 @@ export interface NodeWsContext {
 
 export type NodeWebSocketSessionContext = NodeWsContext;
 
+export interface NodeWsServerLike {
+  on: (
+    event: "connection",
+    handler: (socket: NodeWsSocket, request: IncomingMessage) => void
+  ) => void;
+}
+
 export interface NodeWsProviders {
   transcription: (ctx: NodeWsContext) => TranscriptionProvider;
   agent: (ctx: NodeWsContext) => AgentProcessor;
@@ -49,10 +52,8 @@ export interface NodeWsProviders {
 export type NodeWebSocketProviderFactory = NodeWsProviders;
 
 export interface NodeWsServerOptions {
-  server: WebSocketServer;
-  getUserId: (
-    ctx: { request: IncomingMessage }
-  ) => string | Promise<string>;
+  server: NodeWsServerLike;
+  getUserId: (ctx: { request: IncomingMessage }) => string | Promise<string>;
   providers: NodeWsProviders;
   idleTimeoutMs?: number;
   onSessionStart?: (ctx: { userId: string; session: VoiceSession }) => void;
@@ -123,10 +124,10 @@ export function attachNodeWsSession({
     }
     if (Array.isArray(data)) {
       const merged = Buffer.concat(data);
-      manager.handleMessage(bufferToArrayBuffer(merged));
+      manager.handleMessage(bufferToArrayBuffer(merged) as ArrayBuffer);
       return;
     }
-    manager.handleMessage(bufferToArrayBuffer(data));
+    manager.handleMessage(bufferToArrayBuffer(data) as ArrayBuffer);
   });
 
   ws.on("close", (code: number, reason: Buffer) => {
@@ -170,7 +171,7 @@ export function registerNodeWsServer({
   replacementReason = DEFAULT_REPLACEMENT_REASON,
   replacementCode = DEFAULT_REPLACEMENT_CODE,
 }: NodeWsServerOptions) {
-  const handler = async (socket: WebSocket, request: IncomingMessage) => {
+  const handler = async (socket: NodeWsSocket, request: IncomingMessage) => {
     let userId: string;
     try {
       userId = await Promise.resolve(getUserId({ request }));
@@ -190,7 +191,7 @@ export function registerNodeWsServer({
     const context: NodeWsContext = {
       request,
       userId,
-      socket: socket as unknown as NodeWsSocket,
+      socket,
     };
 
     let transcription: TranscriptionProvider;
@@ -209,7 +210,7 @@ export function registerNodeWsServer({
     closeManagedSession(userId, replacementCode, replacementReason);
 
     const session = attachNodeWsSession({
-      ws: socket as unknown as NodeWsSocket,
+      ws: socket,
       userId,
       transcriptionProvider: transcription,
       agentProcessor: agent,
@@ -236,7 +237,8 @@ export function registerNodeWsServer({
   return {
     closeSession: (userId: string, code?: number, reason?: string) =>
       disconnectNodeWebSocketSession(userId, code, reason),
-    getSession: (userId: string) => managedSessions.get(userId)?.session ?? null,
+    getSession: (userId: string) =>
+      managedSessions.get(userId)?.session ?? null,
     activeSessionCount: () => managedSessions.size,
   };
 }

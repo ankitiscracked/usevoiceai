@@ -5,7 +5,7 @@ import {
   MockSpeechProvider,
   MockTranscriptionProvider,
 } from "../mockProviders";
-import type { SpeechProvider } from "../types";
+import type { AgentProcessor, SpeechProvider } from "../types";
 
 class ControlledSpeechProvider implements SpeechProvider {
   private handlers:
@@ -117,7 +117,7 @@ describe("VoiceSessionManager", () => {
     );
   });
 
-  it("interrupts tts when speech start hints arrive", async () => {
+  it("interrupts tts when new transcripts arrive during playback", async () => {
     const sendJson = vi.fn();
     const sendBinary = vi.fn();
     const closeSocket = vi.fn();
@@ -139,8 +139,13 @@ describe("VoiceSessionManager", () => {
     });
 
     session.handleOpen();
-    await session.handleMessage(JSON.stringify({ type: "start" }));
-    const endPromise = session.handleMessage(JSON.stringify({ type: "end" }));
+    await session.handleMessage(
+      JSON.stringify({
+        type: "start",
+        speechEndDetection: { mode: "auto" },
+      })
+    );
+    transcription.triggerSpeechEnd({ reason: "silence" });
     await Promise.resolve();
     await Promise.resolve();
 
@@ -148,12 +153,8 @@ describe("VoiceSessionManager", () => {
       expect.objectContaining({ type: "tts.start" })
     );
 
-    await session.handleMessage(JSON.stringify({ type: "start" }));
-    transcription.triggerSpeechStart({ reason: "speech_started" });
+    transcription.triggerPartial("new words");
 
-    expect(sendJson).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "speech-start.hint" })
-    );
     expect(sendJson).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "tts.end",
@@ -162,6 +163,90 @@ describe("VoiceSessionManager", () => {
     );
 
     speech.close();
-    await endPromise;
+  });
+
+  class ControlledAgentProcessor implements AgentProcessor {
+    private pending:
+      | {
+          resolve: () => void;
+          send: (event: any) => void;
+          transcript: string;
+        }
+      | null = null;
+
+    async process({
+      transcript,
+      send,
+    }: Parameters<AgentProcessor["process"]>[0]) {
+      return new Promise<void>((resolve) => {
+        this.pending = { resolve, send, transcript };
+      });
+    }
+
+    async flush(responseText?: string) {
+      if (!this.pending) {
+        return;
+      }
+      await this.pending.send({
+        type: "complete",
+        data: {
+          responseText: responseText ?? `response:${this.pending.transcript}`,
+        },
+      });
+      this.pending.resolve();
+      this.pending = null;
+    }
+  }
+
+  it("skips complete events from overlapping turns", async () => {
+    const sendJson = vi.fn();
+    const sendBinary = vi.fn();
+    const closeSocket = vi.fn();
+
+    const transcription = new MockTranscriptionProvider({
+      transcript: "first turn",
+    });
+
+    const agent = new ControlledAgentProcessor();
+
+    const session = new VoiceSession({
+      userId: "user-4",
+      transcriptionProvider: transcription,
+      agentProcessor: agent,
+      speechProvider: new MockSpeechProvider(),
+      sendJson,
+      sendBinary,
+      closeSocket,
+    });
+
+    session.handleOpen();
+    await session.handleMessage(
+      JSON.stringify({
+        type: "start",
+        speechEndDetection: { mode: "auto" },
+      })
+    );
+
+    transcription.triggerSpeechEnd({ reason: "silence" });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    transcription.triggerPartial("second");
+
+    await agent.flush("first-response");
+
+    const completeEvents = sendJson.mock.calls.filter(
+      ([payload]) => payload?.type === "complete"
+    );
+    expect(completeEvents.length).toBe(0);
+    const ttsStartEvents = sendJson.mock.calls.filter(
+      ([payload]) => payload?.type === "tts.start"
+    );
+    expect(ttsStartEvents.length).toBe(0);
+
+    const partialEvents = sendJson.mock.calls.filter(
+      ([payload]) => payload?.type === "transcript.partial"
+    );
+    expect(partialEvents.length).toBeGreaterThan(0);
   });
 });

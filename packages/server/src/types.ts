@@ -4,7 +4,10 @@ import type {
   VoiceSocketEvent,
 } from "@usevoiceai/core";
 
-export type { SpeechEndDetectionConfig, SpeechStartHint } from "@usevoiceai/core";
+export type {
+  SpeechEndDetectionConfig,
+  SpeechStartHint,
+} from "@usevoiceai/core";
 
 export interface Env {
   [key: string]: any;
@@ -47,6 +50,7 @@ export interface AgentProcessor {
     transcript: string;
     userId: string;
     timezone: string;
+    excludeFromConversation?: () => boolean;
     send: (event: VoiceSocketEvent) => void | Promise<void>;
   }) => Promise<void>;
 }

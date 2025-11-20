@@ -85,7 +85,7 @@ See Examples section to see how to run this code.
 | `@usevoiceai/core`      | Framework-agnostic websocket client, voice recorder, controller that wires everything up, and state store.                                                                         |
 | `@usevoiceai/react`     | `useVoice` and `useAudio` hooks which are the main interfaces for capturing speech and playing the response speech on web clients.                                                 |
 | `@usevoiceai/server`    | Runtime-agnostic voice session, session adapters for transports such a Durable Objects websockets, Node websockets, etc., and STT/TTS/agent provider scaffolding.                  |
-| `@usevoiceai/providers` | Voice service providers such as transcription, speech generation, etc. Deepgram for transcription and Cartesia for speech generation is implemented out of box. More to come soon. |
+| `@usevoiceai/cartesia` / `@usevoiceai/deepgram` | Voice service providers such as transcription, speech generation, etc. Deepgram for transcription and Cartesia for speech generation is implemented out of box. More to come soon. |
 
 Examples live under `examples/*` so we can test React and Vue integrations against the same API surface.
 

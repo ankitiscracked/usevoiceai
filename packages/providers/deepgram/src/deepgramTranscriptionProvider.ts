@@ -9,7 +9,6 @@ const DeepgramEvents = {
   Transcript: LiveTranscriptionEvents.Transcript,
   Close: LiveTranscriptionEvents.Close,
   Error: LiveTranscriptionEvents.Error,
-  SpeechStarted: LiveTranscriptionEvents.SpeechStarted,
   UtteranceEnd: LiveTranscriptionEvents.UtteranceEnd,
 } as const;
 
@@ -73,7 +72,6 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
     onError,
     onClose,
     onSpeechEnd,
-    onSpeechStart,
     speechEndDetection,
   }: Parameters<
     TranscriptionProvider["createStream"]
@@ -206,6 +204,14 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       });
       if (
         autoStopEnabled &&
+        speechEndHinted &&
+        !data?.is_final &&
+        transcript.trim().length > 0
+      ) {
+        speechEndHinted = false;
+      }
+      if (
+        autoStopEnabled &&
         !speechEndHinted &&
         (data?.speech_final === true || data?.is_final === true)
       ) {
@@ -225,20 +231,6 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       onSpeechEnd?.({
         reason: "utterance_end",
         providerPayload: data,
-      });
-    });
-
-    stream.on(DeepgramEvents.SpeechStarted, (data: any) => {
-      if (!autoStopEnabled) {
-        return;
-      }
-      onSpeechStart?.({
-        reason: "speech_started",
-        providerPayload: data,
-        timestampMs:
-          typeof data?.timestamp === "number"
-            ? Math.round(data.timestamp * 1000)
-            : undefined,
       });
     });
 

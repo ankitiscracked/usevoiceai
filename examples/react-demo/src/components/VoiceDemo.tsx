@@ -41,6 +41,7 @@ export function VoiceDemo({
     status,
     startRecording,
     stopRecording,
+    cancelRecording,
     results,
     audioStream,
     isAudioPlaying,
@@ -49,9 +50,24 @@ export function VoiceDemo({
     speechEndDetection,
   });
 
-  const { stop } = useAudio({ audioStream });
+  useAudio({ audioStream });
+
+  const isRecording = status.stage === "recording";
+  const isProcessing = status.stage === "processing";
+  const isError = status.stage === "error";
+  const isPlaying = isAudioPlaying;
+
+  const isAutoMode = speechEndDetection?.mode === "auto";
+  const autoSessionActive = isAutoMode && status.stage !== "idle";
+  const showStop = (isAutoMode && autoSessionActive) || isRecording;
+  const disableButton = showStop ? false : isProcessing || isPlaying;
 
   const handleToggle = async () => {
+    if (showStop && isAutoMode) {
+      await cancelRecording();
+      return;
+    }
+
     if (status.stage === "recording") {
       stopRecording();
       return;
@@ -71,11 +87,6 @@ export function VoiceDemo({
   };
 
   const latestResult = results.length > 0 ? results[0] : null;
-
-  const isRecording = status.stage === "recording";
-  const isProcessing = status.stage === "processing";
-  const isError = status.stage === "error";
-  const isPlaying = isAudioPlaying;
 
   return (
     <div className="space-y-6">
@@ -160,12 +171,12 @@ export function VoiceDemo({
           <div className="flex justify-center pt-4">
             <button
               onClick={handleToggle}
-              disabled={isPlaying || isProcessing}
+              disabled={disableButton}
               className={`flex items-center gap-2 px-6 py-3 border-[1.5px] border-stone-500 rounded-md hover:bg-stone-100 transition-colors font-medium text-base ${
-                isPlaying || isProcessing ? "opacity-50 cursor-not-allowed" : ""
+                disableButton ? "opacity-50 cursor-not-allowed" : ""
               }`}
             >
-              {isRecording ? (
+              {showStop ? (
                 <>
                   <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
                   <span>Stop</span>

@@ -2,7 +2,6 @@ import type {
   AgentProcessor,
   SpeechEndHint,
   SpeechProvider,
-  SpeechStartHint,
   TranscriptionProvider,
   TranscriptionStream,
   VoiceSessionOptions,
@@ -34,6 +33,7 @@ type NormalizedSpeechEndDetectionConfig = SpeechEndDetectionConfig & {
 };
 
 type ActiveCommand = {
+  id: number;
   timezone: string;
   transcriber: TranscriptionStream;
   finalTranscriptChunks: string[];
@@ -42,6 +42,10 @@ type ActiveCommand = {
   completionRequested: boolean;
   acceptingAudio: boolean;
   speechEndHintDispatched: boolean;
+  mode: "manual" | "auto";
+  activeTurnId: number | null;
+  turnCounter: number;
+  pendingTurns: Array<{ id: number; skipResponse: boolean }>;
 };
 
 const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
@@ -61,6 +65,7 @@ export class VoiceSession {
   private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
   private lastActivity = Date.now();
   private activeCommand: ActiveCommand | null = null;
+  private nextCommandId = 1;
   private ttsState: TtsState = {
     streaming: false,
     interrupted: false,
@@ -155,10 +160,10 @@ export class VoiceSession {
         onTranscript: (event) => this.handleTranscript(event),
         onError: (error) => this.handleTranscriptionError(error),
         onSpeechEnd: (hint) => this.handleSpeechEndHint(hint),
-        onSpeechStart: (hint) => this.handleSpeechStartHint(hint),
       });
 
       this.activeCommand = {
+        id: this.nextCommandId++,
         timezone: payload.timezone ?? "UTC",
         transcriber,
         finalTranscriptChunks: [],
@@ -167,6 +172,10 @@ export class VoiceSession {
         completionRequested: false,
         acceptingAudio: true,
         speechEndHintDispatched: false,
+        mode: speechEndDetection.mode,
+        activeTurnId: null,
+        turnCounter: 0,
+        pendingTurns: [],
       };
 
       this.options.sendJson({ type: "command-started" });
@@ -180,24 +189,26 @@ export class VoiceSession {
   }
 
   private async completeCommand(trigger: "manual" | "auto" = "manual") {
-    if (!this.activeCommand) {
+    const command = this.activeCommand;
+    if (!command) {
       this.sendError("No active command");
       return;
     }
 
-    if (this.activeCommand.completionRequested) {
+    if (command.completionRequested) {
       return;
     }
 
-    this.activeCommand.completionRequested = true;
-    this.activeCommand.acceptingAudio = false;
+    command.completionRequested = true;
+    command.acceptingAudio = false;
 
     try {
-      await this.activeCommand.transcriber.finish();
-      const finalTranscript = this.activeCommand.finalTranscriptChunks
-        .join(" ")
-        .trim();
-      await this.processTranscript(finalTranscript);
+      await command.transcriber.finish();
+      const finalTranscript = command.finalTranscriptChunks.join(" ").trim();
+      if (finalTranscript.length > 0) {
+        await this.processTranscript(command, finalTranscript);
+      }
+      this.teardownActiveCommand("command complete");
     } catch (error) {
       this.sendError(
         error instanceof Error ? error.message : "Failed to finalize command"
@@ -230,21 +241,31 @@ export class VoiceSession {
     }
   }
 
-  private async processTranscript(transcript: string) {
+  private async processTranscript(
+    command: ActiveCommand,
+    transcript: string
+  ): Promise<void> {
+    const turnId = ++command.turnCounter;
+    command.activeTurnId = turnId;
+    const turnState = { id: turnId, skipResponse: false };
+    command.pendingTurns.push(turnState);
+    this.debug("turn-start", {
+      commandId: command.id,
+      turnId,
+      transcriptLength: transcript.length,
+      transcript,
+    });
     this.options.sendJson({
       type: "transcript.final",
       data: { transcript },
     });
 
-    if (!this.activeCommand) {
-      return;
-    }
-
     try {
       await this.agentProcessor.process({
         transcript,
         userId: this.options.userId,
-        timezone: this.activeCommand.timezone,
+        timezone: command.timezone,
+        excludeFromConversation: () => turnState.skipResponse,
         send: (event: VoiceSocketEvent) => this.forwardAgentEvent(event),
       });
     } catch (error) {
@@ -252,11 +273,30 @@ export class VoiceSession {
         error instanceof Error ? error.message : "Agentic processing failed"
       );
     } finally {
-      this.teardownActiveCommand("command complete");
+      if (this.activeCommand && this.activeCommand.id === command.id) {
+        this.activeCommand.activeTurnId = null;
+      }
     }
   }
 
   private async forwardAgentEvent(event: VoiceSocketEvent) {
+    if (event.type === "complete" && this.activeCommand) {
+      const turnState = this.activeCommand.pendingTurns.shift();
+      if (turnState?.skipResponse) {
+        this.debug("turn-complete-skipped", {
+          commandId: this.activeCommand.id,
+          turnId: turnState.id,
+        });
+        return;
+      }
+      if (turnState) {
+        this.debug("turn-complete", {
+          commandId: this.activeCommand.id,
+          turnId: turnState.id,
+        });
+      }
+    }
+
     this.options.sendJson(event);
 
     if (event.type !== "complete") {
@@ -360,6 +400,37 @@ export class VoiceSession {
       type: "transcript.partial",
       data: { transcript: aggregate },
     });
+
+    if (!event.isFinal && aggregate.length > 0) {
+      const activeTurnId = this.activeCommand.activeTurnId;
+      if (activeTurnId !== null) {
+        const turnStateIndex = this.activeCommand.pendingTurns.findIndex(
+          (turn) => turn.id === activeTurnId
+        );
+        if (turnStateIndex !== -1) {
+          this.activeCommand.pendingTurns[turnStateIndex].skipResponse = true;
+          this.debug("turn-marked-skip", {
+            commandId: this.activeCommand.id,
+            turnId: activeTurnId,
+          });
+        }
+        this.activeCommand.activeTurnId = null;
+      }
+    }
+
+    if (
+      !event.isFinal &&
+      trimmed.length > 0 &&
+      this.ttsState.streaming &&
+      !this.ttsState.endSent
+    ) {
+      this.ttsState.interrupted = true;
+      this.endTtsStream({ interrupted: true });
+      this.ttsState.streaming = false;
+      this.debug("tts-interrupted-by-transcript", {
+        commandId: this.activeCommand.id,
+      });
+    }
   }
 
   private handleTranscriptionError(error: Error) {
@@ -367,21 +438,32 @@ export class VoiceSession {
     this.teardownActiveCommand("transcriber error");
   }
 
-  private handleSpeechStartHint(hint?: SpeechStartHint) {
-    this.options.sendJson({
-      type: "speech-start.hint",
-      data: hint
-        ? {
-            reason: hint.reason,
-            timestampMs: hint.timestampMs,
-          }
-        : undefined,
+  private async finalizeAutoTurn(command: ActiveCommand) {
+    const transcript = command.finalTranscriptChunks.join(" ").trim();
+    command.finalTranscriptChunks = [];
+
+    this.debug("auto-finalize", {
+      commandId: command.id,
+      transcriptLength: transcript.length,
     });
 
-    if (this.ttsState.streaming && !this.ttsState.endSent) {
-      this.ttsState.interrupted = true;
-      this.endTtsStream({ interrupted: true });
-      this.ttsState.streaming = false;
+    if (transcript.length === 0) {
+      command.speechEndHintDispatched = false;
+      return;
+    }
+
+    try {
+      await this.processTranscript(command, transcript);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to process auto voice command";
+      this.sendError(message);
+    } finally {
+      if (this.activeCommand && this.activeCommand.id === command.id) {
+        this.activeCommand.speechEndHintDispatched = false;
+      }
     }
   }
 
@@ -426,6 +508,16 @@ export class VoiceSession {
       type: "tts.end",
       data: Object.keys(data).length > 0 ? data : undefined,
     });
+  }
+
+  private debug(message: string, data?: Record<string, unknown>) {
+    if (typeof console !== "undefined") {
+      if (typeof console.debug === "function") {
+        console.debug(`[voice-session] ${message}`, data ?? {});
+      } else if (typeof console.log === "function") {
+        console.log(`[voice-session] ${message}`, data ?? {});
+      }
+    }
   }
 
   private touch() {
@@ -479,16 +571,12 @@ export class VoiceSession {
       return;
     }
 
-    if (this.activeCommand.speechEndDetection.mode !== "auto") {
-      return;
-    }
-
-    if (this.activeCommand.speechEndHintDispatched) {
-      return;
-    }
-
-    this.activeCommand.speechEndHintDispatched = true;
-    this.activeCommand.acceptingAudio = false;
+    this.debug("speech-end-hint", {
+      commandId: this.activeCommand.id,
+      mode: this.activeCommand.speechEndDetection.mode,
+      reason: hint?.reason,
+      confidence: hint?.confidence,
+    });
 
     this.options.sendJson({
       type: "speech-end.hint",
@@ -498,10 +586,20 @@ export class VoiceSession {
       },
     });
 
-    this.completeCommand("auto").catch((error) => {
-      const message =
-        error instanceof Error ? error.message : "Failed to auto-complete";
-      this.sendError(message);
-    });
+    if (this.activeCommand.speechEndDetection.mode !== "auto") {
+      if (this.activeCommand.speechEndHintDispatched) {
+        return;
+      }
+      this.activeCommand.speechEndHintDispatched = true;
+      this.activeCommand.acceptingAudio = false;
+      this.completeCommand("auto").catch((error) => {
+        const message =
+          error instanceof Error ? error.message : "Failed to auto-complete";
+        this.sendError(message);
+      });
+      return;
+    }
+
+    void this.finalizeAutoTurn(this.activeCommand);
   }
 }

@@ -5,12 +5,9 @@ import { VoiceAudioStream } from "../audio/voiceAudioStream";
 import type {
   SpeechEndDetectionConfig,
   SpeechEndDetectionMode,
-  SpeechStartHint,
   VoiceInputResult,
   VoiceSocketEvent,
 } from "../types";
-
-type StreamCloseReason = "normal" | "interrupted" | "error" | undefined;
 
 type NormalizedSpeechEndDetectionConfig = SpeechEndDetectionConfig & {
   mode: SpeechEndDetectionMode;
@@ -35,9 +32,6 @@ export class VoiceInputController {
   private audioStream: VoiceAudioStream | null = null;
   private store: VoiceInputStore;
   private speechEndDetection: NormalizedSpeechEndDetectionConfig;
-  private audioReleaseReasons = new Map<string, StreamCloseReason>();
-  private autoRestartTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly autoRestartDelayMs = 200;
 
   constructor(private options: VoiceCommandControllerOptions) {
     if (options.store) {
@@ -50,7 +44,7 @@ export class VoiceInputController {
       mode: options.speechEndDetection?.mode ?? "manual",
     };
     this.recorder = new VoiceRecorder({
-      sendBinary: (chunk) => this.options.socket.sendBinary(chunk),
+      sendBinary: (chunk) => this.handleRecorderChunk(chunk),
       sendJson: (payload) => this.options.socket.sendJson(payload),
       onSocketReady: () => this.handleSocketReady(),
       onRecordingEnded: () => this.handleRecordingEnded(),
@@ -82,10 +76,7 @@ export class VoiceInputController {
   }
 
   async startRecording() {
-    this.store.setStatus({
-      stage: "recording",
-      startedAt: Date.now(),
-    });
+    this.enterRecordingStage();
     try {
       await this.recorder.start();
     } catch (error) {
@@ -98,12 +89,10 @@ export class VoiceInputController {
   }
 
   stopRecording() {
-    this.clearAutoRestartTimer();
     this.recorder.stop();
   }
 
   async cancelRecording() {
-    this.clearAutoRestartTimer();
     await this.recorder.cancel();
   }
 
@@ -112,8 +101,6 @@ export class VoiceInputController {
     this.unsubSocket = null;
     this.closeAudioStream();
     this.store.resetButKeepResults();
-    this.clearAutoRestartTimer();
-    this.audioReleaseReasons.clear();
   }
 
   private async handleSocketReady() {
@@ -146,9 +133,7 @@ export class VoiceInputController {
     switch (type) {
       case "transcript.partial":
       case "transcript.final":
-        this.store.setStatus({
-          transcript: data.transcript,
-        });
+        this.handleTranscriptUpdate(data?.transcript);
         break;
       case "tool-message":
         this.store.setStatus({ stage: "processing" });
@@ -177,15 +162,15 @@ export class VoiceInputController {
             data?.errored && !data?.interrupted
               ? new Error("tts stream ended with error")
               : new Error("tts stream interrupted");
-          this.closeAudioStream(error, {
-            reason: data?.interrupted ? "interrupted" : "error",
-          });
+          this.closeAudioStream(error);
           this.store.setAudioPlayback(false);
         } else {
           this.closeAudioStream(undefined, {
             waitForRelease: true,
-            reason: "normal",
           });
+        }
+        if (this.speechEndDetection.mode === "auto") {
+          this.enterRecordingStage();
         }
         break;
       case "timeout":
@@ -194,9 +179,6 @@ export class VoiceInputController {
         break;
       case "speech-end.hint":
         this.handleSpeechEndHint();
-        break;
-      case "speech-start.hint":
-        this.handleSpeechStartHint(data);
         break;
       case "error":
         this.store.setStatus({
@@ -222,13 +204,12 @@ export class VoiceInputController {
 
   private closeAudioStream(
     error?: Error,
-    options?: { waitForRelease?: boolean; reason?: StreamCloseReason }
+    options?: { waitForRelease?: boolean }
   ) {
     if (!this.audioStream) {
       return;
     }
     const stream = this.audioStream;
-    this.audioReleaseReasons.set(stream.id, options?.reason);
     if (error) {
       stream.fail(error);
     } else {
@@ -253,9 +234,6 @@ export class VoiceInputController {
       if (this.audioStream && this.audioStream.id === released.id) {
         this.audioStream = null;
       }
-      const reason = this.audioReleaseReasons.get(released.id);
-      this.audioReleaseReasons.delete(released.id);
-      this.handleAudioStreamReleased(reason);
     });
   }
 
@@ -271,78 +249,57 @@ export class VoiceInputController {
     this.store.pushResult(result);
     this.voiceInputResult = result;
     this.options.onVoiceInputResult?.(result);
+    if (this.speechEndDetection.mode === "auto" && !this.store.isAudioPlaying()) {
+      this.enterRecordingStage();
+    }
   }
 
   private handleSpeechEndHint() {
-    if (this.speechEndDetection.mode !== "auto") {
-      return;
-    }
     this.store.updateStage("processing");
-    this.recorder.stopFromServerHint();
-  }
-
-  private handleSpeechStartHint(data?: SpeechStartHint) {
     if (this.speechEndDetection.mode !== "auto") {
-      return;
+      this.recorder.stopFromServerHint();
     }
-    this.clearAutoRestartTimer();
-    this.closeAudioStream(new Error("tts interrupted by user"), {
-      reason: "interrupted",
-    });
-    this.store.setAudioPlayback(false);
-    this.store.updateStage("recording");
-    this.triggerAutoRestart("speech-start");
   }
 
-  private handleAudioStreamReleased(reason?: StreamCloseReason) {
-    if (reason === "normal") {
-      this.triggerAutoRestart("playback-ended");
-      return;
-    }
-    this.clearAutoRestartTimer();
-  }
-
-  private triggerAutoRestart(source: "playback-ended" | "speech-start") {
-    if (this.speechEndDetection.mode !== "auto") {
-      return;
-    }
-    if (this.recorder.recording) {
-      return;
-    }
-
+  private async handleRecorderChunk(chunk: ArrayBuffer | Blob) {
     const status = this.store.getStatus();
-    if (status.stage === "error") {
-      return;
-    }
-
-    this.clearAutoRestartTimer();
-
-    const attemptStart = () => {
-      this.autoRestartTimer = null;
-      this.startRecording().catch((error) => {
-        console.warn("auto restart failed", error);
-      });
-    };
-
-    if (source === "speech-start") {
-      attemptStart();
-      return;
-    }
-
-    if (typeof setTimeout !== "function") {
-      attemptStart();
-      return;
-    }
-
-    this.autoRestartTimer = setTimeout(() => {
-      attemptStart();
-    }, this.autoRestartDelayMs);
+    const chunkSize =
+      chunk instanceof Blob ? chunk.size : chunk.byteLength ?? 0;
+    console.log("[voice-recorder] sending chunk", {
+      stage: status.stage,
+      transcript: status.transcript,
+      chunkSize,
+      audioPlaying: this.store.isAudioPlaying(),
+      mode: this.speechEndDetection.mode,
+    });
+    await this.options.socket.sendBinary(chunk);
   }
 
-  private clearAutoRestartTimer() {
-    if (this.autoRestartTimer) {
-      clearTimeout(this.autoRestartTimer);
-      this.autoRestartTimer = null;
+  private handleTranscriptUpdate(transcript?: string) {
+    const text = typeof transcript === "string" ? transcript : "";
+    const trimmed = text.trim();
+    if (trimmed.length > 0) {
+      if (this.store.isAudioPlaying()) {
+        this.closeAudioStream(new Error("tts interrupted by transcript"));
+        this.store.setAudioPlayback(false);
+      }
+      if (
+        this.speechEndDetection.mode === "auto" &&
+        this.store.getStatus().stage !== "recording"
+      ) {
+        this.enterRecordingStage();
+      }
     }
+    this.store.setStatus({
+      transcript,
+    });
+  }
+
+  private enterRecordingStage() {
+    this.store.setStatus({
+      stage: "recording",
+      startedAt: Date.now(),
+      transcript: undefined,
+    });
   }
 }

@@ -2,7 +2,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { cartesia } from "@usevoiceai/cartesia";
 import { deepgram } from "@usevoiceai/deepgram";
 import { AgentProcessor, createVoiceDurableObject } from "@usevoiceai/server";
-import { generateText } from "ai";
+import { generateText, type ModelMessage } from "ai";
 
 interface Env {
   VOICE_SESSION: DurableObjectNamespace;
@@ -13,31 +13,46 @@ interface Env {
 }
 
 class MockAgentProcessor implements AgentProcessor {
+  private conversationHistory: ModelMessage[] = [];
+
   constructor(private env: Env) {}
+
   async process({
     transcript,
     send,
+    excludeFromConversation = () => false,
   }: Parameters<AgentProcessor["process"]>[0]) {
-    let response;
     try {
       const google = createGoogleGenerativeAI({
         apiKey: this.env.GOOGLE_GENERATIVE_AI_API_KEY,
       });
 
-      if (this.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-        const { text } = await generateText({
-          model: google("gemini-2.5-flash"),
-          prompt: `You are a helpful assistant. The user has said: ${transcript}. Respond to the user's message.`,
+      const { text } = await generateText({
+        model: google("gemini-3-pro-preview"),
+        system:
+          "Be concise and direct. Answer briefly without unnecessary elaboration. But don't loose the conversation style.",
+        messages: [
+          ...this.conversationHistory,
+          { role: "user", content: transcript },
+        ],
+      });
+
+      if (!excludeFromConversation()) {
+        this.conversationHistory.push({
+          role: "user",
+          content: transcript,
         });
-        response = text;
-      } else {
-        response = `You spoke: ${transcript}`;
+
+        this.conversationHistory.push({
+          role: "assistant",
+          content: text,
+        });
       }
 
       await send({
         type: "complete",
         data: {
-          responseText: response,
+          responseText: text,
         },
       });
     } catch (error) {

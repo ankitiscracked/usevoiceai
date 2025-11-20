@@ -137,7 +137,7 @@ describe("DeepgramTranscriptionProvider", () => {
     );
   });
 
-  it("emits speech start hints when vad events fire", async () => {
+  it("re-arms speech end hints after new partial transcripts", async () => {
     const fakeStream = new FakeDeepgramStream();
     const provider = new DeepgramTranscriptionProvider({
       apiKey: "test",
@@ -150,24 +150,35 @@ describe("DeepgramTranscriptionProvider", () => {
         }) as any,
     });
 
-    const startHandler = vi.fn();
+    const hintHandler = vi.fn();
     await provider.createStream({
       onTranscript: vi.fn(),
       onError: vi.fn(),
-      onSpeechStart: startHandler,
+      onSpeechEnd: hintHandler,
       speechEndDetection: { mode: "auto" },
     });
 
-    fakeStream.emit(LiveTranscriptionEvents.SpeechStarted, {
-      type: "SpeechStarted",
-      timestamp: 2.5,
+    fakeStream.emit(LiveTranscriptionEvents.Open);
+
+    fakeStream.emit(LiveTranscriptionEvents.Transcript, {
+      channel: { alternatives: [{ transcript: "first turn" }] },
+      is_final: true,
+      speech_final: true,
     });
 
-    expect(startHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reason: "speech_started",
-        timestampMs: 2500,
-      })
-    );
+    expect(hintHandler).toHaveBeenCalledTimes(1);
+
+    fakeStream.emit(LiveTranscriptionEvents.Transcript, {
+      channel: { alternatives: [{ transcript: "uh" }] },
+      is_final: false,
+    });
+
+    fakeStream.emit(LiveTranscriptionEvents.Transcript, {
+      channel: { alternatives: [{ transcript: "second turn" }] },
+      is_final: true,
+      speech_final: true,
+    });
+
+    expect(hintHandler).toHaveBeenCalledTimes(2);
   });
 });

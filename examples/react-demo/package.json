@@ -8,19 +8,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tanstack/react-router": "^1.74.0",
-    "@types/react": "^19.2.4",
-    "@types/react-dom": "^19.2.3",
+    "@tanstack/react-router": "^1.136.11",
     "@usevoiceai/react": "workspace:*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@types/react-dom": "^19.2.3",
+    "@types/react": "^19.2.6",
+    "@tailwindcss/vite": "^4.1.17",
     "@vitejs/plugin-react": "^5.1.1",
-    "autoprefixer": "^10.4.22",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.0",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.8"
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2"
   }
 }

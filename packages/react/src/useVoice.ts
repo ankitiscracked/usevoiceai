@@ -65,13 +65,10 @@ export function useVoice(
     () => store.getStatus()
   );
 
-  console.log("reactive status", status);
-
   const results = useSyncExternalStore(
     (callback) => store.subscribeResults(callback),
     () => store.getResults()
   );
-  console.log("reactive results", results);
   const audioStream = useSyncExternalStore(
     (callback) => store.subscribeAudioStream(callback),
     () => store.getAudioStream()

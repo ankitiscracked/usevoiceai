@@ -11,9 +11,9 @@
     "@ai-sdk/google": "^2.0.32",
     "@cartesia/cartesia-js": "^2.2.9",
     "@deepgram/sdk": "^4.11.2",
-    "@usevoiceai/providers/cartesia": "workspace:*",
+    "@usevoiceai/cartesia": "workspace:*",
     "@usevoiceai/core": "workspace:*",
-    "@usevoiceai/providers/deepgram": "workspace:*",
+    "@usevoiceai/deepgram": "workspace:*",
     "@usevoiceai/server": "workspace:*",
     "ai": "^5.0.93"
   },

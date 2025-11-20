@@ -1,6 +1,5 @@
 import type {
   SpeechEndHint,
-  SpeechStartHint,
   TranscriptionProvider,
   TranscriptionStream
 } from "../../types";
@@ -13,19 +12,22 @@ export class MockTranscriptionProvider
   implements TranscriptionProvider
 {
   private lastSpeechEndCallback: ((hint?: SpeechEndHint) => void) | null = null;
-  private lastSpeechStartCallback: ((hint?: SpeechStartHint) => void) | null = null;
+  private lastTranscriptCallback:
+    | ((event: { transcript: string; isFinal: boolean }) => void)
+    | null = null;
+  private lastTranscriptEmitted = false;
 
   constructor(private options: MockTranscriptionProviderOptions = {}) {}
 
   async createStream({
     onTranscript,
-    onSpeechEnd,
-    onSpeechStart
+    onSpeechEnd
   }: Parameters<TranscriptionProvider["createStream"]>[0]): Promise<TranscriptionStream> {
     let aborted = false;
     let buffer: ArrayBuffer[] = [];
     this.lastSpeechEndCallback = onSpeechEnd ?? null;
-    this.lastSpeechStartCallback = onSpeechStart ?? null;
+    this.lastTranscriptCallback = onTranscript ?? null;
+    this.lastTranscriptEmitted = false;
 
     return {
       send: (chunk) => {
@@ -45,14 +47,15 @@ export class MockTranscriptionProvider
         buffer.push(copied);
       },
       finish: async () => {
-        if (aborted) return;
+        if (aborted || this.lastTranscriptEmitted) return;
         const defaultTranscript =
           this.options.transcript ??
           `mock transcript (${buffer.length} chunks)`;
-        onTranscript({
+        this.lastTranscriptCallback?.({
           transcript: defaultTranscript,
           isFinal: true
         });
+        this.lastTranscriptEmitted = true;
       },
       abort: () => {
         aborted = true;
@@ -62,10 +65,22 @@ export class MockTranscriptionProvider
   }
 
   triggerSpeechEnd(hint?: SpeechEndHint) {
+    if (!this.lastTranscriptEmitted) {
+      const fallback =
+        this.options.transcript ?? "mock transcript (auto speech end)";
+      this.lastTranscriptCallback?.({
+        transcript: fallback,
+        isFinal: true
+      });
+      this.lastTranscriptEmitted = true;
+    }
     this.lastSpeechEndCallback?.(hint);
   }
 
-  triggerSpeechStart(hint?: SpeechStartHint) {
-    this.lastSpeechStartCallback?.(hint);
+  triggerPartial(transcript: string) {
+    this.lastTranscriptCallback?.({
+      transcript,
+      isFinal: false
+    });
   }
 }
