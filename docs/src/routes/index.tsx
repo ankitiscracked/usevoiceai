@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
 import { baseOptions } from "@/lib/layout.shared";
-import { SystemDesignAnimation } from "@/components/SystemDesignAnimation";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -9,29 +8,30 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   return (
-    <HomeLayout
-      {...baseOptions()}
-      className={`py-24 justify-center gap-10 mx-auto`}
-    >
-      <div className="space-y-4 mx-auto flex flex-col items-center justify-center mt-4">
-        <p className="text-muted-foreground text-center text-3xl font-medium">
-          The Typescript toolkit for ambitious voice AI apps
-        </p>
-        <div className="flex gap-3 flex-wrap">
+    <HomeLayout {...baseOptions()} className="text-center py-32 justify-center">
+      <div className="flex items-center justify-between mx-auto max-w-6xl">
+        <div>
+          <h1 className="font-medium text-xl mb-4">
+            The Typescript toolkit for ambitious voice AI apps
+          </h1>
           <Link
             to="/docs/$"
-            params={{ _splat: "" }}
-            className="px-4 py-2 rounded-lg bg-fd-primary text-fd-primary-foreground font-medium text-sm"
+            params={{
+              _splat: "",
+            }}
+            className="px-3 py-2 rounded-lg bg-fd-primary text-fd-primary-foreground font-medium text-sm mx-auto"
           >
-            Get started
+            Get Started
           </Link>
-          <code className="font-mono px-4 py-2 rounded-lg border border-muted-foreground/30 font-medium text-sm text-muted-foreground">
-            npm i usevoiceai
-          </code>
+        </div>
+        <div className="w-2/5">
+          <div className="flex items-start gap-2 mb-2">
+            <span>client.ts</span>
+            <span>server.ts</span>
+          </div>
+          <img src="../../public/images/ray-so-export.png" alt="Get Started" />
         </div>
       </div>
-
-      <SystemDesignAnimation />
     </HomeLayout>
   );
 }

@@ -1,58 +1,90 @@
 ---
-title: useVoice
-description: Learn what lives inside the useVoice workspace and how the moving pieces fit together.
-icon: BookOpen
+title: What is usevoiceai?
+icon: Rocket
 ---
 
-useVoice is a multi-runtime voice AI SDK that pairs a realtime speech interface on the client with
-pluggable transcription, agent, and text-to-speech providers on the backend. The monorepo is managed
-with Bun workspaces so every package shares tooling and typechecking.
+`usevoiceai` is the toolkit for building ambitious voice AI apps. It's a set of packages that help you build voice AI apps quickly and easily. It's build on typescript and is framework agnostic. It's inspired by [AI SDK](https://sdk.vercel.ai/) and [Pipecat](https://pipecat.dev/).
+
+usevoiceai has two main parts for the minimum setup required to get up and running.
+
+- Client: `useVoice` and `useAudio` hooks which are the main interfaces for capturing speech and playing the response speech on web clients.
+- Server: Voice session, session adapters for transports such a Durable Objects websockets, Node websockets, etc., and STT/TTS/agent provider scaffolding.
+
+It's heavily inspired by [AI SDK](https://sdk.vercel.ai/) and [Pipecat](https://pipecat.dev/) so the API is hugely inspired by them. Greate DX is a top priority.
+
+Here's the minimum setup required to get up and running.
+
+```ts
+import { useVoice, useAudio } from "usevoiceai";
+
+const { startRecording, stopRecording, transcript, audioStream } = useVoice();
+const { stop } = useAudio(audioStream);
+```
+
+```ts
+import { VoiceSessionDO } from "usevoiceai";
+
+const VoiceSessionDO = createVoiceDurableObject<Env>({
+  transcription: (env) => deepgram("nova-3", { apiKey: env.DEEPGRAM_API_KEY }),
+  agent: (env) => new MockAgentProcessor(env),
+  speech: (env) => cartesia("sonic-3", { apiKey: env.CARTESIA_API_KEY }),
+});
+
+export default {
+  async fetch(request: Request, env: Env) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/voice-command/ws") {
+      const userId = url.searchParams.get("userId") ?? "demo-user";
+      const id = env.VOICE_SESSION.newUniqueId();
+      const stub = env.VOICE_SESSION.get(id);
+      return stub.fetch(new Request(request, { headers }));
+    }
+    return new Response("Not found", { status: 404 });
+  },
+};
+```
 
 <Cards>
   <Card
-    title="Get set up quickly"
-    description="Run the demos and connect them to the Cloudflare Worker backend."
-    href="/docs/quickstart"
+    title="Learn more about Tanstack Start"
+    href="https://tanstack.com/start"
   />
-  <Card
-    title="Understand the architecture"
-    description="See how the controller, state store, session manager, and providers interact."
-    href="/docs/architecture"
-  />
-  <Card
-    title="Build client experiences"
-    description="Use the React and Vue bindings plus the streaming audio utilities."
-    href="/docs/client/integration"
-  />
-  <Card
-    title="Bring your own providers"
-    description="Swap in Deepgram, Cartesia, or custom services on the server."
-    href="/docs/backend/voice-session-manager"
-  />
+  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
 </Cards>
 
-## What useVoice gives you
+### Problems it solves
 
-- **Realtime streaming transcripts** sourced from Deepgram (or any `TranscriptionProvider`) and
-  forwarded as `transcript.partial` websocket events the moment STT returns an interim result.
-- **Incremental audio playback** over the same socket: the server emits raw PCM chunks between
-  `tts.start`/`tts.end`, and the React hook exposes an async iterable you can render or pipe into
-  the provided TTS player.
-- **Agent orchestration** via the `VoiceSessionManager`: once a transcript finalizes, it invokes
-  your `AgentProcessor` (mock or production) and forwards the structured response back to the client.
-- **Framework adapters** for React, Vue, Cloudflare Durable Objects, and mocked sockets so you can
-  test both UX and backend flows locally.
+Voice models have gotten really good lately but the infra to stitch everything together is lacking. Model providers have their SDKs but every provider have different interfaces. We have frameworks like Pipecat which are great but I needed something like AI SDK to get from idea to prod as soon as it is possible. In fact, the API is hugely inspired by AI SDK. So `usevoiceai` is an attempt to build something sophisticated with the same API simplicity and engineer ergonomics.
 
-## Workspace layout
+Some of the problems it solves:
 
-| Package / Example            | Purpose |
-| ---------------------------- | ------- |
-| `@usevoiceai/core`              | Recorder + socket controller, async audio streams, and shared state store. |
-| `@usevoiceai/react` / `@usevoiceai/vue` | Framework bindings that expose `useVoiceCommand` plus React-only helpers like `useTtsPlayer`. |
-| `@usevoiceai/server`            | `VoiceSessionManager`, node/Durable Object adapters, and provider contracts. |
-| `@usevoiceai/deepgram` / `@usevoiceai/cartesia` | Production provider implementations for Deepgram STT and Cartesia TTS. |
-| `examples/react-demo` / `examples/vue-demo` | Frontend playgrounds that can run against the mock socket or your Cloudflare Worker. |
-| `examples/cloudflare-worker` | Durable Object backend that wires Deepgram + Cartesia into the session manager. |
+- **Framework Agnostic**: It's framework agnostic so you can use it with any framework you want.
+- **Easy to use**: The API is designed to be easy to use and understand.
+- **Great DX**: The API is designed to be easy to use and understand.
+- **Great DX**: The API is designed to be easy to use and understand.
 
-Use the navigation on the left to dive into detailed setup guides, client integration notes, and the
-provider-specific configuration you need for production environments.
+## Pluggable providers
+
+`usevoiceai` is designed to be pluggable so you can use any provider you want. We have a few providers out of the box:
+
+- **STT**: [Deepgram](https://deepgram.com/)
+- **TTS**: [Cartesia](https://cartesia.ai/)
+- **Agent**: [MockAgent](https://mockagent.com/)
+
+You can also create your own provider by implementing the `AgentProcessor` interface.
+
+```ts title="agent-processor.ts"
+import { AgentProcessor } from "usevoiceai";
+
+class MockAgentProcessor implements AgentProcessor {
+  constructor(private env: Env) {}
+  async process({
+    transcript,
+    send,
+  }: Parameters<AgentProcessor["process"]>[0]) {
+    // do something with the transcript and return response
+    await send({ type: "complete", data: { responseText: response } });
+  }
+}
+```
