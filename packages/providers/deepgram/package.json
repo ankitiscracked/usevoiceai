@@ -1,6 +1,8 @@
 {
   "name": "@usevoiceai/deepgram",
   "version": "0.1.0",
+  "description": "Deepgram transcription provider for the usevoiceai server pipeline.",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,11 +12,20 @@
       "default": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --dts --clean --format esm --tsconfig tsconfig.build.json",
     "dev": "tsup src/index.ts --dts --watch --format esm --tsconfig tsconfig.build.json",
     "test": "vitest run",
-    "lint": "echo \"todo: lint deepgram\"",
+    "lint": "tsc --noEmit -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -27,5 +38,20 @@
     "@deepgram/sdk": {
       "optional": true
     }
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ankitiscracked/usevoiceai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ankitiscracked/usevoiceai/issues"
+  },
+  "homepage": "https://github.com/ankitiscracked/usevoiceai#readme",
+  "keywords": [
+    "voice",
+    "ai",
+    "stt",
+    "deepgram",
+    "usevoiceai"
+  ]
 }

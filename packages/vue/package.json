@@ -1,9 +1,18 @@
 {
   "name": "@usevoiceai/vue",
   "version": "0.1.0",
+  "description": "Vue composables to stream voice input and AI responses with usevoiceai.",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "vue": "^3.4.0"
   },
@@ -16,11 +25,29 @@
       "default": "./dist/index.js"
     }
   },
+  "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --dts --clean",
     "dev": "tsup src/index.ts --dts --watch",
     "test": "vitest run",
-    "lint": "echo \"todo: lint vue\"",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "prepublishOnly": "npm run build",
     "clean": "rm -rf dist"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ankitiscracked/usevoiceai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ankitiscracked/usevoiceai/issues"
+  },
+  "homepage": "https://github.com/ankitiscracked/usevoiceai#readme",
+  "keywords": [
+    "voice",
+    "ai",
+    "vue",
+    "stt",
+    "tts",
+    "usevoiceai"
+  ]
 }

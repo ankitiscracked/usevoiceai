@@ -1,9 +1,11 @@
 {
   "name": "usevoice",
   "version": "0.1.0",
+  "description": "TypeScript toolkit for building voice AI apps end-to-end across client and server.",
   "private": true,
   "packageManager": "bun@1.1.26",
   "type": "module",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "bun workspaces run build",
     "dev": "bun workspaces run dev",
@@ -15,6 +17,21 @@
   "workspaces": [
     "packages/**/*",
     "examples/**/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ankitiscracked/usevoiceai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ankitiscracked/usevoiceai/issues"
+  },
+  "homepage": "https://github.com/ankitiscracked/usevoiceai#readme",
+  "keywords": [
+    "voice",
+    "ai",
+    "stt",
+    "tts",
+    "usevoiceai"
   ],
   "devDependencies": {
     "@testing-library/react": "^16.0.1",

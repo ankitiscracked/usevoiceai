@@ -1,9 +1,18 @@
 {
   "name": "@usevoiceai/react",
   "version": "0.1.0",
+  "description": "React hooks for capturing voice input and streaming AI responses with usevoiceai.",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "react": "^19.2.0"
   },
@@ -16,15 +25,33 @@
       "default": "./dist/index.js"
     }
   },
+  "sideEffects": false,
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
-    "lint": "echo \"todo: lint react\"",
+    "lint": "tsc --noEmit -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",
     "@babel/preset-typescript": "^7.28.5"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ankitiscracked/usevoiceai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ankitiscracked/usevoiceai/issues"
+  },
+  "homepage": "https://github.com/ankitiscracked/usevoiceai#readme",
+  "keywords": [
+    "voice",
+    "ai",
+    "react",
+    "stt",
+    "tts",
+    "usevoiceai"
+  ]
 }
