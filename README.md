@@ -86,6 +86,25 @@ See Examples section to see how to run this code.
 | `@usevoiceai/react`     | `useVoice` and `useAudio` hooks which are the main interfaces for capturing speech and playing the response speech on web clients.                                                 |
 | `@usevoiceai/server`    | Runtime-agnostic voice session, session adapters for transports such a Durable Objects websockets, Node websockets, etc., and STT/TTS/agent provider scaffolding.                  |
 | `@usevoiceai/cartesia` / `@usevoiceai/deepgram` | Voice service providers such as transcription, speech generation, etc. Deepgram for transcription and Cartesia for speech generation is implemented out of box. More to come soon. |
+| `@usevoiceai/hume`      | Hume Text-to-Speech provider wired to the voice session pipeline so you can stream Hume voices over websockets.                                                                    |
+
+### Hume TTS quickstart
+
+```ts
+import { hume } from "@usevoiceai/hume";
+import { deepgram } from "@usevoiceai/deepgram";
+import { createVoiceDurableObject } from "@usevoiceai/server";
+
+const session = createVoiceDurableObject({
+  transcription: () => deepgram("nova-3"),
+  agent: () => new MockAgentProcessor(),
+  speech: () =>
+    hume({
+      apiKey: process.env.HUME_API_KEY,
+      voice: { name: "Ava Song", provider: "HUME_AI" },
+    }),
+});
+```
 
 Examples live under `examples/*` so we can test React and Vue integrations against the same API surface.
 

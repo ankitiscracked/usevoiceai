@@ -1,0 +1,35 @@
+{
+  "name": "@usevoiceai/hume",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --dts --clean --format esm --tsconfig tsconfig.build.json",
+    "dev": "tsup src/index.ts --dts --watch --format esm --tsconfig tsconfig.build.json",
+    "test": "vitest run",
+    "lint": "echo \"todo: lint hume\"",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@usevoiceai/server": "workspace:*"
+  },
+  "peerDependencies": {
+    "hume": "^0.8.0"
+  },
+  "peerDependenciesMeta": {
+    "hume": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
