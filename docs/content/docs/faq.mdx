@@ -1,0 +1,28 @@
+---
+title: FAQ
+description: Quick answers to common questions.
+---
+
+### How do I authenticate the websocket?
+
+Add tokens to the URL via `buildUrl()` on the client or inject headers in your server adapter before calling `createVoiceSession`/`createVoiceDurableObject`.
+
+### Can I use custom STT/TTS?
+
+Yes. Implement `TranscriptionProvider`/`SpeechProvider` from `@usevoiceai/server` and plug them into the session factory.
+
+### How do I auto-detect end of speech?
+
+Pass `speechEndDetection: { mode: "auto" }` to the client; ensure your transcription provider supports VAD/end-pointing (Deepgram does).
+
+### Can I play audio my own way?
+
+Consume `audioStream` directly as an async iterable of PCM chunks. Feed it into Web Audio, MediaSource, or a custom encoder.
+
+### Multiple sessions per user?
+
+Each WebSocket maps to one `VoiceSession`. Open multiple sockets if you need parallel sessions or namespace by `userId`.
+
+### Does it work with SSR or tests?
+
+Yes. Provide `WebSocketImpl` and `mediaDevices` mocks for tests; real recording still requires a browser environment.

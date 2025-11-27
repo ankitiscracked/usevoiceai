@@ -1,0 +1,51 @@
+---
+title: Providers
+description: Built-in STT/TTS helpers and required configuration.
+---
+
+## Deepgram (STT)
+
+```ts
+import { deepgram } from "@usevoiceai/deepgram";
+
+const transcription = deepgram("nova-3", { apiKey: process.env.DEEPGRAM_API_KEY });
+```
+
+Options: `keepAliveIntervalMs`, default `encoding/sampleRate/channels`, `clientFactory`. For auto speech-end, pass `speechEndDetection: { mode: "auto" }` from the client; the provider maps to Deepgram VAD settings.
+
+## Cartesia (TTS)
+
+```ts
+import { cartesia } from "@usevoiceai/cartesia";
+
+const speech = cartesia("sonic-3", {
+  apiKey: process.env.CARTESIA_API_KEY,
+  voiceId: "66c6b81c-ddb7-4892-bdd5-19b5a7be38e7",
+});
+```
+
+Streams PCM s16le 48kHz. You can override `voiceId` or inject a custom `clientFactory`.
+
+## Hume (TTS)
+
+```ts
+import { hume } from "@usevoiceai/hume";
+
+const speech = hume({
+  apiKey: process.env.HUME_API_KEY,
+  voice: { name: "Ava Song", provider: "HUME_AI" },
+  sampleRate: 48_000,
+});
+```
+
+Requires the optional `hume` dependency at runtime (the helper lazy-loads it).
+
+## Bring your own
+
+Implement `TranscriptionProvider`, `SpeechProvider`, or `AgentProcessor` from `@usevoiceai/server`:
+
+- `TranscriptionProvider.createStream({ send, finish, abort })`
+- `SpeechProvider.stream(text, { onAudioChunk, onClose, onError })`
+- `AgentProcessor.process({ transcript, send, userId })`
+
+Plug custom providers into `createVoiceSession`/`createVoiceDurableObject`/`registerNodeWebSocketServer`.

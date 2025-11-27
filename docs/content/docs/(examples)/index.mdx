@@ -1,0 +1,8 @@
+---
+title: Examples
+description: Where to run the sample apps.
+---
+
+- React demo: `cd examples/react && bun install && bun run dev`
+- Cloudflare Worker backend: `cd examples/cloudflare-worker && bun install && bun run dev`
+- End-to-end: start the worker (default `ws://127.0.0.1:8787/voice-command/ws?userId=demo`), set `VITE_USEVOICEAI_WS_URL` in `examples/react/.env`, then `bun --filter @usevoiceai/example-react run dev`.

@@ -1,12 +1,36 @@
 ---
 title: Installation
-description: This is another page
+description: How to add usevoiceai packages and set the minimum env vars.
 ---
 
-Hello World again!
+Install the packages you need (pick your package manager).
 
-## Installation
+```bash
+# React client
+bun add @usevoiceai/react
+# or: npm i @usevoiceai/react
 
-```npm
-npm i fumadocs-core fumadocs-ui
+# Core (only if you want the low-level pieces)
+bun add @usevoiceai/core
+
+# Server runtime + providers
+bun add @usevoiceai/server @usevoiceai/deepgram @usevoiceai/cartesia
+# Optional TTS provider
+bun add @usevoiceai/hume
 ```
+
+## Minimum environment
+
+On the server side, set the provider keys you use:
+
+- `DEEPGRAM_API_KEY`
+- `CARTESIA_API_KEY`
+- `HUME_API_KEY` (if using Hume TTS)
+
+For local examples, copy your websocket URL into the client:
+
+```
+VITE_USEVOICEAI_WS_URL=ws://127.0.0.1:8787/voice-command/ws?userId=demo
+```
+
+If you self-host, expose that URL behind HTTPS and require auth as needed.

@@ -1,0 +1,38 @@
+---
+title: Core concepts
+description: How the pieces fit together on the client and server.
+---
+
+## VoiceSocketClient
+
+Thin WebSocket wrapper that handles:
+
+- `url` or `buildUrl()` resolution.
+- Idle close (`idleTimeoutMs`, default 5 minutes) and keepalive pings (`pingIntervalMs`).
+- JSON vs binary dispatch (`subscribe`, `onMessage`, `onBinary`).
+
+## VoiceInputController + Recorder
+
+- Manages stages: `idle` → `recording` → `processing` → `completed` (or `error`).
+- Uses `MediaRecorder` (Opus/WebM mono, 48 kHz) to stream chunks.
+- Sends `start`/`end`/`cancel` JSON and forwards audio to the socket.
+- Respects `speechEndDetection.mode`:
+  - `manual` (default): client stops on `stopRecording` or server hint.
+  - `auto`: restarts recording after TTS ends; can stop on server `speech-end.hint`.
+
+## VoiceAudioStream
+
+An async iterable of PCM chunks. `useAudio` consumes it and plays via Web Audio. You can also `for await` manually and pipe into your own player or encoder.
+
+## Server VoiceSession
+
+- Accepts client control messages (`start`, `end`, `cancel`, `ping`) and audio.
+- Feeds audio into a `TranscriptionProvider`; forwards partial/final transcripts.
+- Calls your `AgentProcessor.process` with the final transcript; emits its `send` events back to the socket (e.g., `complete` with `responseText`).
+- Streams TTS via `SpeechProvider.stream`, wrapping binary audio with `tts.start` / `tts.end`.
+- Auto speech-end: if the provider signals it and mode is `auto`, it finalizes the turn without waiting for `end`.
+
+## Transports
+
+- Cloudflare Durable Object: `createVoiceDurableObject` upgrades and routes sockets per user.
+- Node WebSocket: `registerNodeWebSocketServer` manages one session per user and replaces older sockets.

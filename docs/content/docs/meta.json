@@ -1,0 +1,14 @@
+{
+  "title": "Docs",
+  "pages": [
+    "index",
+    "installation",
+    "quickstart-client",
+    "quickstart-server",
+    "providers",
+    "core-concepts",
+    "troubleshooting",
+    "faq",
+    "(examples)"
+  ]
+}

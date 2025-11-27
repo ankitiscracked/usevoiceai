@@ -1,0 +1,61 @@
+---
+title: Quickstart (Server)
+description: Stand up a voice session over WebSockets with Cloudflare DO or Node.
+---
+
+Pick a transport; both use the same `VoiceSession` under the hood.
+
+## Cloudflare Durable Object
+
+```ts
+import { cartesia } from "@usevoiceai/cartesia";
+import { deepgram } from "@usevoiceai/deepgram";
+import { createVoiceDurableObject } from "@usevoiceai/server";
+
+export const VoiceSessionDO = createVoiceDurableObject<Env>({
+  transcription: (env) => deepgram("nova-3", { apiKey: env.DEEPGRAM_API_KEY }),
+  agent: () => new MockAgentProcessor(),
+  speech: (env) => cartesia("sonic-3", { apiKey: env.CARTESIA_API_KEY }),
+});
+```
+
+Route requests to the DO and pass `userId` in the request headers or query.
+
+## Node WebSocket server
+
+```ts
+import { cartesia } from "@usevoiceai/cartesia";
+import { deepgram } from "@usevoiceai/deepgram";
+import { registerNodeWebSocketServer } from "@usevoiceai/server";
+import { WebSocketServer } from "ws";
+
+const wss = new WebSocketServer({ port: 8787 });
+
+registerNodeWebSocketServer({
+  server: wss,
+  getUserId: ({ request }) =>
+    new URL(request.url ?? "http://localhost").searchParams.get("userId") ??
+    "demo",
+  providers: {
+    transcription: () => deepgram("nova-3", { apiKey: process.env.DEEPGRAM_API_KEY }),
+    agent: () => new MockAgentProcessor(),
+    speech: () => cartesia("sonic-3", { apiKey: process.env.CARTESIA_API_KEY }),
+  },
+});
+```
+
+### Message flow
+
+1) Client sends `start` (with timezone/audio config).  
+2) Streams audio chunks.  
+3) Sends `end` (or server auto-detects speech end).  
+4) Agent emits `complete` with `responseText`.  
+5) Server streams TTS audio as binary, bookended by `tts.start` / `tts.end`.
+
+### Environment
+
+Set provider keys on the server:
+
+- `DEEPGRAM_API_KEY`
+- `CARTESIA_API_KEY`
+- `HUME_API_KEY` (if you swap to Hume TTS)
