@@ -13,11 +13,11 @@ Yes. Implement `TranscriptionProvider`/`SpeechProvider` from `@usevoiceai/server
 
 ### How do I auto-detect end of speech?
 
-Pass `speechEndDetection: { mode: "auto" }` to the client; ensure your transcription provider supports VAD/end-pointing (Deepgram does).
+Pass `speechEndDetection: { mode: "auto" }` to the client; ensure your transcription provider emits `speech-end` hints (enable VAD/endpointing via `speechEndDetection.options`). Otherwise, use manual `end`.
 
 ### Can I play audio my own way?
 
-Consume `audioStream` directly as an async iterable of PCM chunks. Feed it into Web Audio, MediaSource, or a custom encoder.
+Consume `speechStream` directly as an async iterable of PCM chunks. Feed it into Web Audio, MediaSource, or a custom encoder.
 
 ### Multiple sessions per user?
 

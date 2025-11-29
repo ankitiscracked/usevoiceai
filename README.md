@@ -14,16 +14,16 @@ The SDK has two main parts for the minimum setup required to get up and running.
 
 ### Client quickstart
 
-Add `useVoice` and `useAudio` hooks to your react component like this. Call `startRecording` to start streaming your voice. As you speak, partial transcripts will be reflected in the `transcript` variable. It's reactive so you can use it to show incremental transcripts.
+Add `useVoice` and `useSpeech` hooks to your react component like this. Call `startRecording` to start streaming your voice. As you speak, partial transcripts will be reflected in the `transcript` variable. It's reactive so you can use it to show incremental transcripts.
 
-Once you call `stopRecording`, `status` will move into the `processing ` stage. After the server is done processing, status moves to the `complete` stage and `audioStream` becomes available. You can pass it to the `useAudio` hook to automatically start playing the response audio or use it however you want. It's just an async iterable containing raw audio PCM chunks.
+Once you call `stopRecording`, `status` will move into the `processing ` stage. After the server is done processing, status moves to the `complete` stage and `speechStream` becomes available. You can pass it to the `useSpeech` hook to automatically start playing the response audio or use it however you want. It's just an async iterable containing raw audio PCM chunks.
 
 ```jsx
-import { useAudio, useVoice } from "@usevoiceai/react";
+import { useSpeech, useVoice } from "@usevoiceai/react";
 
 export function App() {
-  const { startRecording, stopRecording, transcript, audioStream } = useVoice();
-  const { stop } = useAudio(audioStream);
+  const { startRecording, stopRecording, transcript, speechStream } = useVoice();
+  const { stop } = useSpeech({ speechStream });
 }
 ```
 
@@ -83,7 +83,7 @@ See Examples section to see how to run this code.
 | Package                 | Description                                                                                                                                                                        |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@usevoiceai/core`      | Framework-agnostic websocket client, voice recorder, controller that wires everything up, and state store.                                                                         |
-| `@usevoiceai/react`     | `useVoice` and `useAudio` hooks which are the main interfaces for capturing speech and playing the response speech on web clients.                                                 |
+| `@usevoiceai/react`     | `useVoice` and `useSpeech` hooks which are the main interfaces for capturing speech and playing the response speech on web clients.                                                |
 | `@usevoiceai/server`    | Runtime-agnostic voice session, session adapters for transports such a Durable Objects websockets, Node websockets, etc., and STT/TTS/agent provider scaffolding.                  |
 | `@usevoiceai/cartesia` / `@usevoiceai/deepgram` | Voice service providers such as transcription, speech generation, etc. Deepgram for transcription and Cartesia for speech generation is implemented out of box. More to come soon. |
 | `@usevoiceai/hume`      | Hume Text-to-Speech provider wired to the voice session pipeline so you can stream Hume voices over websockets.                                                                    |

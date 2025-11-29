@@ -20,9 +20,9 @@ Thin WebSocket wrapper that handles:
   - `manual` (default): client stops on `stopRecording` or server hint.
   - `auto`: restarts recording after TTS ends; can stop on server `speech-end.hint`.
 
-## VoiceAudioStream
+## SpeechStream
 
-An async iterable of PCM chunks. `useAudio` consumes it and plays via Web Audio. You can also `for await` manually and pipe into your own player or encoder.
+An async iterable of PCM chunks. `useSpeech` consumes it and plays via Web Audio. You can also `for await` manually and pipe into your own player or encoder.
 
 ## Server VoiceSession
 
@@ -30,9 +30,62 @@ An async iterable of PCM chunks. `useAudio` consumes it and plays via Web Audio.
 - Feeds audio into a `TranscriptionProvider`; forwards partial/final transcripts.
 - Calls your `AgentProcessor.process` with the final transcript; you return `responseText` (string or object), and the SDK emits `complete`/TTS. `send` is available for custom events if you need them.
 - Streams TTS via `SpeechProvider.send`, wrapping binary audio with `tts.start` / `tts.end`. The returned `SpeechStream` is an async iterable of audio chunks if you want to tap the stream yourself.
-- Auto speech-end: if the provider signals it and mode is `auto`, it finalizes the turn without waiting for `end`.
+- Auto speech-end: if the provider signals it and mode is `auto`, it finalizes the turn without waiting for `end`. If your provider never emits `speech-end`, an “auto” client behaves like manual until it sends `end`.
+- Identity vs session: `userId` is treated as the actor identity (Node/DO adapters replace any existing session for that user). Add your own session id if you want multiple concurrent sessions per user.
+
+### What is a voice session?
+
+A voice session is a WebSocket-backed interaction loop:
+- Capture mic audio from the client and stream it to the server.
+- Transcribe the audio via your `TranscriptionProvider` (partial + final transcripts).
+- Run your `AgentProcessor` on the final transcript to produce a response.
+- Stream TTS audio back to the client via your `SpeechProvider`.
+
+It is not an auth/login session. By default, Node/DO adapters keep one active voice session per `userId` (replacing older sockets). If you need multiple simultaneous sessions per user, namespace `userId` or pass your own session identifier.
 
 ## Transports
 
 - Cloudflare Durable Object: `createVoiceDurableObject` upgrades and routes sockets per user.
 - Node WebSocket: `registerNodeWebSocketServer` manages one session per user and replaces older sockets.
+
+See also: [Wire protocol](/docs/wire-protocol).
+
+### Example: creating a voice session (Node)
+
+```ts
+import { deepgram } from "@usevoiceai/deepgram";
+import { cartesia } from "@usevoiceai/cartesia";
+import { VoiceSession } from "@usevoiceai/server";
+import WebSocket from "ws";
+
+const ws = new WebSocket("ws://localhost:8787");
+
+// Stand up a session manually (e.g., inside a WebSocket handler)
+const session = new VoiceSession({
+  userId: "demo-user",
+  transcriptionProvider: deepgram("nova-3", {
+    apiKey: process.env.DEEPGRAM_API_KEY,
+  }),
+  agentProcessor: {
+    async process({ transcript }) {
+      return `You said: ${transcript}`;
+    },
+  },
+  speechProvider: cartesia("sonic-3", {
+    apiKey: process.env.CARTESIA_API_KEY,
+  }),
+  sendJson: (payload) => ws.send(JSON.stringify(payload)),
+  sendBinary: (chunk) => ws.send(chunk),
+  closeSocket: (code, reason) => ws.close(code, reason),
+  idleTimeoutMs: 5 * 60 * 1000,
+});
+
+ws.on("open", () => session.handleOpen());
+ws.on("message", (data) => session.handleMessage(data as any));
+ws.on("close", (code, reason) => session.handleClose(code, reason?.toString()));
+```
+
+Notes:
+- `userId` scopes the session; the adapter will replace any existing session for that user.
+- `AgentProcessor.process` must return `responseText` (string or object with `responseText`), or the server will throw an error.
+- `speechEndDetection` comes from the client `start` payload; if your transcription provider doesn’t emit `speech-end`, auto mode behaves like manual.

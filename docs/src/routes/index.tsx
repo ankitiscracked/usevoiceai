@@ -31,11 +31,11 @@ export { VoiceSessionDO };`,
       {
         name: "client.ts",
         language: "typescript",
-        code: `const { startRecording, stopRecording, status, audioStream } = useVoice({
+        code: `const { startRecording, stopRecording, status, speechStream } = useVoice({
   socketOptions: { url: import.meta.env.VITE_USEVOICEAI_WS_URL },
 });
 
-const { stop } = useAudio({ audioStream });`,
+const { stop } = useSpeech({ speechStream });`,
       },
     ];
 

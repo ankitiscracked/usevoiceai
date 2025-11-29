@@ -1,7 +1,5 @@
-import { mount } from "@vue/test-utils";
-import { defineComponent, h } from "vue";
-import { describe, expect, it, vi } from "vitest";
-import { useVoiceCommand } from "./useVoiceCommand";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { useVoice } from "./useVoice";
 import { VoiceInputStore } from "@usevoiceai/core";
 
 class MockSocket {
@@ -17,41 +15,31 @@ class MockSocket {
   }
 }
 
-describe("@usevoiceai/vue useVoiceCommand", () => {
-  it("reacts to store updates", async () => {
-    const store = new VoiceInputStore();
-    const socket = new MockSocket();
+describe("@usevoiceai/vue useVoice", () => {
+  let store: VoiceInputStore;
+  let socket: MockSocket;
 
-    const TestComponent = defineComponent({
-      setup() {
-        const command = useVoiceCommand({
-          state: store,
-          socket: socket as any
-        });
-        return () =>
-          h(
-            "div",
-            {
-              "data-stage": command.status.value.stage,
-              "data-recording": command.isRecording.value ? "true" : "false"
-            },
-            ""
-          );
-      }
-    });
+  beforeEach(() => {
+    store = new VoiceInputStore();
+    socket = new MockSocket();
+  });
 
-    const wrapper = mount(TestComponent);
-    expect(wrapper.attributes("data-stage")).toBe("idle");
-    expect(wrapper.attributes("data-recording")).toBe("false");
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("exposes reactive status", () => {
+    const { status } = useVoice({ state: store, socket: socket as any });
+    expect(status.value.stage).toBe("idle");
 
     store.setStatus({ stage: "recording" });
-    await wrapper.vm.$nextTick();
+    expect(status.value.stage).toBe("recording");
+  });
 
-    expect(wrapper.attributes("data-stage")).toBe("recording");
-
+  it("updates recording state", () => {
+    const { isRecording } = useVoice({ state: store, socket: socket as any });
+    expect(isRecording.value).toBe(false);
     store.setRecording(true);
-    await wrapper.vm.$nextTick();
-
-    expect(wrapper.attributes("data-recording")).toBe("true");
+    expect(isRecording.value).toBe(true);
   });
 });

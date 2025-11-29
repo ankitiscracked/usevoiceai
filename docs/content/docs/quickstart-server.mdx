@@ -48,7 +48,7 @@ registerNodeWebSocketServer({
 
 1) Client sends `start` (with audio config).  
 2) Streams audio chunks.  
-3) Sends `end` (or server auto-detects speech end).  
+3) Sends `end` (or server auto-detects speech end if the transcription provider emits `speech-end` hints in `auto` mode).  
 4) Agent returns `responseText` (or `{ responseText, ... }`); SDK emits `complete`.  
 5) Server streams TTS audio as binary, bookended by `tts.start` / `tts.end`.
 
@@ -59,3 +59,5 @@ Set provider keys on the server:
 - `DEEPGRAM_API_KEY`
 - `CARTESIA_API_KEY`
 - `HUME_API_KEY` (if you swap to Hume TTS)
+
+`userId` represents the caller identity. Node/DO adapters keep one active session per `userId` (replacing old sockets). If you need parallel sessions per user, pass your own session id and namespace `userId` accordingly.

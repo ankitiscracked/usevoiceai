@@ -11,7 +11,7 @@ import { deepgram } from "@usevoiceai/deepgram";
 const transcription = deepgram("nova-3", { apiKey: process.env.DEEPGRAM_API_KEY });
 ```
 
-Options: `keepAliveIntervalMs`, default `encoding/sampleRate/channels`, `clientFactory`. For auto speech-end, pass `speechEndDetection: { mode: "auto" }` from the client; the provider maps to Deepgram VAD settings.
+Options: `keepAliveIntervalMs`, default `encoding/sampleRate/channels`, `clientFactory`. For auto speech-end, pass `speechEndDetection: { mode: "auto" }` from the client; the provider maps to Deepgram VAD/endpointing via `speechEndDetection.options` (e.g., `utteranceEndMs`, `endpointing`, `vadEvents`). If the provider never emits `speech-end` hints, “auto” mode behaves like manual.
 
 > **Workers note:** In Cloudflare/Deno runtimes there is no `process.env`. Always pass `apiKey` from your `env` bindings (e.g., `deepgram("nova-3", { apiKey: env.DEEPGRAM_API_KEY })`).
 
@@ -50,7 +50,7 @@ Requires the optional `hume` dependency at runtime (the helper lazy-loads it).
 
 Implement `TranscriptionProvider`, `SpeechProvider`, or `AgentProcessor` from `@usevoiceai/server`:
 
-- `TranscriptionProvider.createStream(options)` → returns a `TranscriptStream` you can `send` audio to and also `for await` transcripts/speech-end hints from.
+- `TranscriptionProvider.createStream(options)` → returns a `TranscriptStream` you can `send` audio to and also `for await` transcripts/speech-end hints from. Generic options: `encoding`, `sampleRate`, `channels`, and `speechEndDetection` (mode + free-form `provider/options` for VAD/endpoint tuning).
 - `SpeechProvider.send(text, { onAudioChunk, onClose, onError })` → returns a `SpeechStream` that is itself `for await`-able for audio chunks (and supports optional `cancel()`).
 - `AgentProcessor.process({ transcript, userId, send })` → return a `string` or `{ responseText, ... }` and the SDK will emit a `complete` event and trigger TTS. Use `send` only for auxiliary/custom events (not for `complete`).
 
@@ -60,3 +60,101 @@ Plug custom providers into `createVoiceSession`/`createVoiceDurableObject`/`regi
 
 - `TranscriptStream` is an async iterable of events: `{ type: "transcript" | "speech-end" | "speech-start", ... }`. You still drive audio input via `send()`, `finish()`, `abort()`.
 - `SpeechStream` is an async iterable of `ArrayBuffer` PCM chunks. You can consume it with `for await` or rely on the provided `onAudioChunk` handler.
+
+### Example: custom transcription provider
+
+```ts
+import type {
+  TranscriptionProvider,
+  TranscriptStream,
+  TranscriptEvent,
+  SpeechEndDetectionConfig,
+} from "@usevoiceai/server";
+
+class MyTranscriber implements TranscriptStream {
+  private queue: TranscriptEvent[] = [];
+  private closed = false;
+
+  constructor(private emitter: SomeSttClient) {}
+
+  send(chunk: ArrayBuffer | ArrayBufferView) {
+    this.emitter.pushAudio(chunk);
+  }
+
+  async finish() {
+    this.emitter.flush();
+    this.close();
+  }
+
+  abort(reason?: string) {
+    this.emitter.close(reason);
+    this.close();
+  }
+
+  private close() {
+    this.closed = true;
+  }
+
+  async *[Symbol.asyncIterator]() {
+    while (!this.closed) {
+      const event = await this.emitter.nextEvent();
+      if (!event) break;
+      yield event; // { type: "transcript" | "speech-end" | "speech-start", ... }
+    }
+  }
+}
+
+export const myTranscriptionProvider: TranscriptionProvider = {
+  async createStream(options) {
+    const client = new SomeSttClient({
+      encoding: options.encoding,
+      sampleRate: options.sampleRate,
+      channels: options.channels,
+      vad: options.speechEndDetection,
+      onTranscript: ({ text, isFinal }) =>
+        options.onTranscript({ transcript: text, isFinal }),
+      onSpeechEnd: (hint) => options.onSpeechEnd?.(hint),
+      onError: (err) => options.onError(err),
+    });
+    return new MyTranscriber(client);
+  },
+};
+```
+
+Notes:
+- Honor `encoding/sampleRate/channels` and pass `speechEndDetection` to your STT client if it supports VAD/end-pointing.
+- Call `options.onTranscript` for partial/final text; emit `speech-end` when your provider detects end-of-speech.
+- Implement `finish()` to flush/finalize; `abort()` to stop early.
+
+### Example: custom speech provider
+
+```ts
+import type { SpeechProvider, SpeechStream } from "@usevoiceai/server";
+
+export const mySpeechProvider: SpeechProvider = {
+  async send(text, { onAudioChunk, onClose, onError }) {
+    const stream: SpeechStream = {
+      async *[Symbol.asyncIterator]() {
+        // Optional: expose the same audio via iteration
+      },
+    };
+
+    try {
+      const tts = new SomeTtsClient();
+      const reader = tts.stream(text);
+      for await (const chunk of reader) {
+        onAudioChunk(chunk);
+      }
+      onClose();
+    } catch (error) {
+      onError(error as Error);
+    }
+
+    return stream;
+  },
+};
+```
+
+Notes:
+- Invoke `onAudioChunk` for each PCM chunk you produce; call `onClose` when done and `onError` if streaming fails.
+- You can implement `SpeechStream[Symbol.asyncIterator]` to let consumers `for await` the same chunks (optional but useful for testing or alternate playback).

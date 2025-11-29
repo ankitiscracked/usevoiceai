@@ -27,7 +27,7 @@ export interface UseVoiceCommandOptions {
 export interface UseVoiceCommandResult {
   status: VoiceCommandStatus;
   results: VoiceInputResult[];
-  audioStream: SpeechStream | null;
+  speechStream: SpeechStream | null;
   isAudioPlaying: boolean;
   isRecording: boolean;
   startRecording: () => Promise<void>;
@@ -73,7 +73,7 @@ export function useVoice(
     (callback) => store.subscribeResults(callback),
     () => store.getResults()
   );
-  const audioStream = useSyncExternalStore(
+  const speechStream = useSyncExternalStore(
     (callback) => store.subscribeAudioStream(callback),
     () => store.getAudioStream()
   );
@@ -106,7 +106,7 @@ export function useVoice(
   return {
     status,
     results,
-    audioStream,
+    speechStream,
     isAudioPlaying,
     isRecording,
     startRecording,

@@ -16,7 +16,7 @@ class MockSocket {
   }
 }
 
-describe("@usevoiceai/react useVoiceCommand", () => {
+describe("@usevoiceai/react useVoice", () => {
   it("subscribes to state updates", async () => {
     const store = new VoiceInputStore();
     const socket = new MockSocket();

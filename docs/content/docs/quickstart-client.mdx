@@ -6,13 +6,13 @@ description: Minimal React and Vue setups to capture speech and play TTS.
 ## React
 
 ```tsx
-import { useAudio, useVoice } from "@usevoiceai/react";
+import { useSpeech, useVoice } from "@usevoiceai/react";
 
 export function App() {
-  const { startRecording, stopRecording, status, audioStream } = useVoice({
+  const { startRecording, stopRecording, status, speechStream } = useVoice({
     socketOptions: { url: import.meta.env.VITE_USEVOICEAI_WS_URL },
   });
-  const { stop } = useAudio({ audioStream });
+  const { stop } = useSpeech({ speechStream });
 
   return (
     <div>
@@ -30,21 +30,21 @@ Notes:
 - Requires HTTPS (or `localhost`) for mic access.
 - WebM/Opus capture; modern Chromium/Firefox/Safari supported.
 - WebSocket URL must point to your voice session endpoint.
-- If your server emits custom events, pass `onCustomEvent` to `useVoice`/`useVoiceCommand` to handle them.
+- If your server emits custom events, pass `onCustomEvent` to `useVoice` to handle them.
 
 ## Vue
 
 ```vue
 <script setup lang="ts">
-import { useVoiceCommand } from "@usevoiceai/vue";
+import { useVoice } from "@usevoiceai/vue";
 
 const {
   status,
   startRecording,
   stopRecording,
   cancelRecording,
-  audioStream,
-} = useVoiceCommand({
+  speechStream,
+} = useVoice({
   socketOptions: { url: import.meta.env.VITE_USEVOICEAI_WS_URL },
 });
 </script>
@@ -62,5 +62,7 @@ const {
 ### Behavior
 
 - Stages: `idle` → `recording` → `processing` → `completed` (or `error`).
-- `audioStream` is an async iterable of PCM audio; `useAudio` plays it via Web Audio API.
-- Auto speech end: set `speechEndDetection: { mode: "auto" }` if your server/provider supports it.
+- `speechStream` is an async iterable of PCM audio; `useSpeech` plays it via Web Audio API.
+- Modes:
+  - `manual` (default): you stop with `stopRecording` (or `cancelRecording`). Recording stays open until you do.
+  - `auto`: if your STT provider emits `speech-end` hints, the server finalizes a turn when you stop talking; recording can restart automatically so you can keep speaking. If no hints arrive, it behaves like manual and you should call `stopRecording`.

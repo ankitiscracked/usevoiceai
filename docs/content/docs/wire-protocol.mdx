@@ -1,0 +1,67 @@
+---
+title: Wire protocol
+description: The JSON and binary messages exchanged between client and server.
+---
+
+## Client → server
+
+- `start`: `{ type: "start", audio?: { encoding?, sampleRate?, channels? }, speechEndDetection?: { mode?: "manual" | "auto"; provider?: string; options?: Record<string, unknown> } }`
+- `end`: `{ type: "end" }` — client-driven completion.
+- `cancel`: `{ type: "cancel" }` — abort the active command.
+- `ping`: `{ type: "ping", timestamp?: number }`
+- Binary: raw audio chunks (ArrayBuffer/WebSocket binary frames).
+
+## Server → client (JSON)
+
+- `ready`: `{ type: "ready", data?: { timeoutMs?: number } }` — session is primed; you can start recording.
+- `command-started`: `{ type: "command-started" }` — server accepted your `start`; audio will be processed under a new command.
+- Transcripts:
+  - Partial: `{ type: "transcript.partial", data?: { transcript?: string } }` — interim text; may change.
+  - Final: `{ type: "transcript.final", data?: { transcript?: string } }` — stable text used for agent processing.
+- Speech hints:
+  - End: `{ type: "speech-end.hint", data?: { reason?: string; confidence?: number } }` — provider thinks speech stopped; in manual mode the server may auto-complete, in auto mode it finalizes a turn.
+  - Start: `{ type: "speech-start.hint", data?: { reason?: string; timestampMs?: number } }` — provider detected speech onset (rarely used in UI).
+- Agent response:
+  - `complete`: `{ type: "complete", data?: { responseText?: string; formattedContent?: { content?: string }; [key: string]: any } }` — final agent turn; TTS follows if configured.
+  - Custom tool/events: `{ type: "tool-message", data?: { message?: string } }` or any custom `type` you emit via `send` — use for live tool updates or UI hints; do not use for final completions.
+- TTS control:
+  - `tts.start`: `{ type: "tts.start", data?: { encoding?: string; sampleRate?: number; channels?: number; mimeType?: string } }` — audio about to stream as binary.
+  - `tts.end`: `{ type: "tts.end", data?: { errored?: boolean; interrupted?: boolean } }` — playback finished or was interrupted/failed.
+- Command lifecycle:
+  - `command-cancelled`: `{ type: "command-cancelled" }` — your `cancel` was acknowledged; reset UI to idle.
+  - `timeout`: `{ type: "timeout", data?: { idleMs?: number } }` — idle timeout reached; expect socket close.
+- Health:
+  - `pong`: `{ type: "pong", data?: { timestamp?: number } }` — response to `ping`; useful for latency/keepalive.
+- Errors:
+  - `error`: `{ type: "error", data: { code: VoiceErrorCode; message: string; retryable?: boolean; details?: Record<string, unknown>; error?: string } }` — inspect `code` for branching; `retryable` hints at safe retries.
+
+## Server → client (binary)
+
+- TTS audio frames streamed as binary WebSocket frames after `tts.start` and before `tts.end`. PCM linear16 by default (48 kHz, mono) unless your `SpeechProvider` specifies otherwise in `tts.start`.
+
+## Sequences
+
+### Manual mode
+1) Client sends `start`.
+2) Streams audio (binary frames).
+3) Server streams `transcript.partial` as STT produces text.
+4) Client sends `end`.
+5) Server sends `transcript.final`, then `complete`, then `tts.start` → binary audio → `tts.end`.
+
+### Auto mode
+1) Client sends `start` with `speechEndDetection: { mode: "auto", ... }`.
+2) Streams audio; server streams partials.
+3) When the transcription provider emits `speech-end`, server finalizes the turn and sends `transcript.final` → `complete` → TTS.
+4) Client may continue recording for the next turn (depending on your UI).
+5) If the provider never emits `speech-end`, auto behaves like manual; client must send `end`.
+
+## Session semantics
+
+- `userId` identifies the actor. The Node/DO adapters keep one active voice session per `userId` and replace older sockets for that user. If you need multiple concurrent sessions per user, namespace `userId` or pass your own session identifier.
+- A voice session is a WebSocket-backed loop: capture audio → transcribe → run agent → stream TTS. It is not an auth/login session.
+
+## Notes
+
+- `complete` must include `responseText` (or `formattedContent.content`) or the server will treat it as an error.
+- Binary audio from the client is forwarded to your `TranscriptionProvider.send`.
+- Errors use stable `code`s; use `retryable` to signal safe retries.

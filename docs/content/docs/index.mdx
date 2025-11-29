@@ -12,12 +12,12 @@ title: Introduction
 - You want to use the latest voice models but you don't want vendor lock-in
 - You care about ergonomics and great DX
 
-## How it works
+## Minimum setup
 
 `usevoiceai` has two main parts for the minimum setup required to get up and running.
 
-- Client: `useVoice` and `useSpeech` hooks which are the main interfaces for capturing your voice and playing the response speech on your web browser.
-- Server: Framework agnostic voice capture and playback session, adapters for transports such a Durable Objects, Node WebSockets, etc., and default providers for transcription, speech generation with a pluggable Agent interface.
+- **Client**: `useVoice` and `useSpeech` hooks which are the main interfaces for capturing your voice and playing the response speech on your web browser.
+- **Server**: Framework agnostic voice capture and playback session, adapters for transports such a Durable Objects, Node WebSockets, etc., and default providers for transcription, speech generation with a pluggable Agent interface.
 
 Here's the minimum that required to get you up and running.
 
@@ -52,46 +52,48 @@ export default {
 };
 ```
 
-<Cards>
-  <Card
-    title="Learn more about Tanstack Start"
-    href="https://tanstack.com/start"
-  />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
-</Cards>
+## How it works
 
-### Problems it solves
+## Why it exists?
 
-Voice models have gotten really good lately but the infra to stitch everything together is lacking. Model providers have their SDKs but every provider have different interfaces. We have frameworks like Pipecat which are great but I needed something like AI SDK to get from idea to prod as soon as it is possible. In fact, the API is hugely inspired by AI SDK. So `usevoiceai` is an attempt to build something sophisticated with the same API simplicity and engineer ergonomics.
+Voice models have made incredible leaps in recent years but the infra to integrate them in real apps is still lacking. Model providers gladly provide APIs and SDKs and they are great but the ecosystem is fragmented. Providers have different contracts and quirks. Often, choosing one means leaving other. Or worse painfully glueing different parts together to make it work.
 
-Some of the problems it solves:
+Some of the technical problems it solves:
 
-- **Framework Agnostic**: It's framework agnostic so you can use it with any framework you want.
-- **Easy to use**: The API is designed to be easy to use and understand.
-- **Great DX**: The API is designed to be easy to use and understand.
-- **Great DX**: The API is designed to be easy to use and understand.
+- Models are already great. This package just augments them on the infra layer
+- Provides unified interfaces to work with transcription providers and speech generation providers
+- Handles the intricacies of socket connections and session management
+- Handles the complex pipeline of STT -> your custom agent -> TTS
+- Handles Automatic Speech Recognition based turn processing
+- Handles the intricacies of audio recording on web browsers
+- Provides simple intuitive APIs for good DX
+- Provides convenience utilities for both client and server
 
-## Pluggable providers
+## Pluggable architecture
 
-`usevoiceai` is designed to be pluggable so you can use any provider you want. We have a few providers out of the box:
+`usevoiceai` is designed to be **pluggable** and **composable**.
 
-- **STT**: [Deepgram](https://deepgram.com/)
-- **TTS**: [Cartesia](https://cartesia.ai/)
-- **Agent**: [MockAgent](https://mockagent.com/)
+You can use any provider for transcription and speech generation you want. We have a few providers out of the box:
 
-You can also create your own provider by implementing the `AgentProcessor` interface.
+- **Speech-To-Text**: [Deepgram](https://deepgram.com/)
+- **Text-To-Speech**: [Cartesia](https://cartesia.ai/), [Hume](https://hume.ai/)
 
-```ts title="agent-processor.ts"
-import { AgentProcessor } from "usevoiceai";
+You can also create your own provider by implementing the `TranscriptionProvider` and `SpeechProvider` interfaces.
 
-class MockAgentProcessor implements AgentProcessor {
-  constructor(private env: Env) {}
-  async process({
-    transcript,
-    send,
-  }: Parameters<AgentProcessor["process"]>[0]) {
-    // do something with the transcript and return response
-    await send({ type: "complete", data: { responseText: response } });
-  }
-}
-```
+<Callout type="info">
+  See [Providers](/docs/providers) for more details.
+</Callout>
+
+On the transport layer, we have a few adapters for popular server runtimes:
+
+- **Cloudflare Durable Object**: `createVoiceDurableObject`
+- **Node WebSocket**: `registerNodeWebSocketServer`
+
+<Callout type="info">
+  See [Quickstart (Server)](/docs/quickstart-server) for more details.
+</Callout>
+
+## Focus on proving great DX
+
+I've meticulously obsessed over the DX of this project. I'm don't shy from accepting that the design of AI SDK has been a huge influence.
+The client hooks are intuitive and expose as much as needed to get you up and running quickly. The server is framework agnostic and provides a default helper implementations for popular STT and TTS providers. The providers are pluggable and you can provide your own implementations. For example, if you prefer to use local voice models.

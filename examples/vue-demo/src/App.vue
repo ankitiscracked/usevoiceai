@@ -15,10 +15,10 @@
 </template>
 
 <script setup lang="ts">
-import { useVoiceCommand } from "@usevoiceai/vue";
+import { useVoice } from "@usevoiceai/vue";
 import { DemoWebSocket } from "./mockServerSocket";
 
-const command = useVoiceCommand({
+const command = useVoice({
   socketOptions: {
     url: "wss://demo.local",
     WebSocketImpl: DemoWebSocket

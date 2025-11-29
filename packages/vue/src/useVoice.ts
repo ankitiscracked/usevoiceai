@@ -9,7 +9,7 @@ import {
 } from "@usevoiceai/core";
 import { createVoiceCommandBridge } from "./createVoiceCommandBridge";
 
-export interface UseVoiceCommandOptions {
+export interface UseVoiceOptions {
   socket?: VoiceSocketClient;
   socketOptions?: VoiceSocketClientOptions;
   state?: VoiceInputStore;
@@ -21,14 +21,14 @@ export interface UseVoiceCommandOptions {
   onCustomEvent?: (event: VoiceSocketEvent) => void;
 }
 
-export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
+export function useVoice(options: UseVoiceOptions = {}) {
   const bridge = createVoiceCommandBridge({
     socket: options.socket,
     socketOptions: options.socketOptions,
     state: options.state,
     mediaDevices: options.mediaDevices,
     notifications: options.notifications,
-    onCustomEvent: options.onCustomEvent
+    onCustomEvent: options.onCustomEvent,
   });
 
   const store = bridge.store;
@@ -39,7 +39,7 @@ export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
   const queryResponse = shallowRef<VoiceInputResult | null>(
     bridge.getQueryResponse()
   );
-  const audioStream = shallowRef(store.getAudioStream());
+  const speechStream = shallowRef(store.getAudioStream());
   const isAudioPlaying = shallowRef(store.isAudioPlaying());
   const isRecording = shallowRef(store.isRecording());
 
@@ -50,7 +50,7 @@ export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
     results.value = next;
   });
   const unsubAudio = store.subscribeAudioStream((stream) => {
-    audioStream.value = stream;
+    speechStream.value = stream;
   });
   const unsubPlayback = store.subscribePlayback((playing) => {
     isAudioPlaying.value = playing;
@@ -81,12 +81,12 @@ export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
     status: readonly(status),
     results: readonly(results),
     queryResponse: readonly(queryResponse),
-    audioStream: readonly(audioStream),
+    speechStream: readonly(speechStream),
     isAudioPlaying: readonly(isAudioPlaying),
     isRecording: readonly(isRecording),
     startRecording,
     stopRecording,
     cancelRecording,
-    recorderStream: controller.getRecorderStream()
+    recorderStream: controller.getRecorderStream(),
   };
 }

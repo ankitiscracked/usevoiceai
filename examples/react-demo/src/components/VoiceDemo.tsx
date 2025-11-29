@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { SpeechEndDetectionConfig } from "@usevoiceai/core";
-import { useAudio, useVoice } from "@usevoiceai/react";
+import { useSpeech, useVoice } from "@usevoiceai/react";
 import { DemoWebSocket } from "../mockServerSocket";
 
 const wsUrl = import.meta.env.VITE_USEVOICEAI_WS_URL;
@@ -43,7 +43,7 @@ export function VoiceDemo({
     stopRecording,
     cancelRecording,
     results,
-    audioStream,
+    speechStream,
     isAudioPlaying,
     isRecording,
   } = useVoice({
@@ -51,7 +51,7 @@ export function VoiceDemo({
     speechEndDetection,
   });
 
-  useAudio({ audioStream });
+  useSpeech({ speechStream });
 
   const isProcessing = status.stage === "processing";
   const isError = status.stage === "error";

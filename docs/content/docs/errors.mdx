@@ -71,10 +71,10 @@ socket.onMessage((event) => {
 
 ### Handling TTS iterator errors
 
-`VoiceAudioStream` rejects its iterator when `tts.end` arrives with `errored`. Catch it in your player:
+`SpeechStream` rejects its iterator when `tts.end` arrives with `errored`. Catch it in your player:
 
 ```ts
-for await (const chunk of audioStream) {
+for await (const chunk of speechStream) {
   await playChunk(chunk);
 }
 // If the stream failed, the loop throws.

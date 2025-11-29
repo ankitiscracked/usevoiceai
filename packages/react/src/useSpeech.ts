@@ -3,18 +3,18 @@ import { useAudioPlayer } from "./useAudioPlayer";
 import { SpeechStream } from "@usevoiceai/core";
 
 export function useSpeech({
-  audioStream,
+  speechStream,
 }: {
-  audioStream: SpeechStream | null;
+  speechStream: SpeechStream | null;
 }) {
   const audio = useAudioPlayer();
 
   useEffect(() => {
-    if (!audioStream) {
+    if (!speechStream) {
       return;
     }
     let isCancelled = false;
-    const stream = audioStream;
+    const stream = speechStream;
     const iterator = stream[Symbol.asyncIterator]();
     let hasReleased = false;
     const releaseStream = () => {
@@ -55,7 +55,7 @@ export function useSpeech({
       releaseStream();
       audio.reset();
     };
-  }, [audioStream, audio]);
+  }, [speechStream, audio]);
 
   return {
     stop: audio.reset,
