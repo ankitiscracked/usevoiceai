@@ -1,38 +1,97 @@
 ---
-title: What is usevoiceai?
-description: A minimal overview of the toolkit and how it fits together.
-icon: Rocket
+title: Introduction
 ---
 
-`usevoiceai` is the TypeScript toolkit for building end-to-end voice apps in a few lines. It is framework agnostic and splits into:
+`usevoiceai` is the Typescript toolkit to build ambitious voice AI apps. You can think of it as the voice native version of [AI SDK](https://sdk.vercel.ai/). It heavily focuses on time to value and great DX.
 
-- Client: `useVoice` / `useAudio` hooks, a WebSocket client, recorder, and state store.
-- Server: a transport-agnostic `VoiceSession`, adapters for Cloudflare Durable Objects and Node WebSockets, plus STT/TTS provider helpers.
+## Why should you use it?
 
-With one websocket you get: mic capture → streaming STT → agent processing → streaming TTS back to the browser.
+- You want to integrate voice interactivity into your app within minutes
+- You don't know much about [WebSockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+- You don't know much about the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
+- You want to use the latest voice models but you don't want vendor lock-in
+- You care about ergonomics and great DX
 
-## At a glance
+## How it works
 
-```tsx
-import { useVoice, useAudio } from "@usevoiceai/react";
+`usevoiceai` has two main parts for the minimum setup required to get up and running.
 
-const { startRecording, stopRecording, status, audioStream } = useVoice({
-  socketOptions: { url: import.meta.env.VITE_USEVOICEAI_WS_URL },
-});
+- Client: `useVoice` and `useSpeech` hooks which are the main interfaces for capturing your voice and playing the response speech on your web browser.
+- Server: Framework agnostic voice capture and playback session, adapters for transports such a Durable Objects, Node WebSockets, etc., and default providers for transcription, speech generation with a pluggable Agent interface.
 
-const { stop } = useAudio({ audioStream });
+Here's the minimum that required to get you up and running.
+
+```ts
+import { useVoice, useSpeech } from "usevoiceai";
+
+const { startRecording, stopRecording, transcript, speechStream } = useVoice();
+const { stop } = useSpeech({ speechStream });
 ```
 
 ```ts
-import { cartesia } from "@usevoiceai/cartesia";
-import { deepgram } from "@usevoiceai/deepgram";
-import { createVoiceDurableObject } from "@usevoiceai/server";
+import { VoiceSessionDO } from "usevoiceai";
 
-export const VoiceSessionDO = createVoiceDurableObject<Env>({
+const VoiceSessionDO = createVoiceDurableObject<Env>({
   transcription: (env) => deepgram("nova-3", { apiKey: env.DEEPGRAM_API_KEY }),
-  agent: () => new MockAgentProcessor(),
+  agent: (env) => new MockAgentProcessor(env),
   speech: (env) => cartesia("sonic-3", { apiKey: env.CARTESIA_API_KEY }),
 });
+
+export default {
+  async fetch(request: Request, env: Env) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/voice-command/ws") {
+      const userId = url.searchParams.get("userId") ?? "demo-user";
+      const id = env.VOICE_SESSION.newUniqueId();
+      const stub = env.VOICE_SESSION.get(id);
+      return stub.fetch(new Request(request, { headers }));
+    }
+    return new Response("Not found", { status: 404 });
+  },
+};
 ```
 
-Jump to installation, pick a quickstart, and you should be talking to your app in minutes.
+<Cards>
+  <Card
+    title="Learn more about Tanstack Start"
+    href="https://tanstack.com/start"
+  />
+  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
+</Cards>
+
+### Problems it solves
+
+Voice models have gotten really good lately but the infra to stitch everything together is lacking. Model providers have their SDKs but every provider have different interfaces. We have frameworks like Pipecat which are great but I needed something like AI SDK to get from idea to prod as soon as it is possible. In fact, the API is hugely inspired by AI SDK. So `usevoiceai` is an attempt to build something sophisticated with the same API simplicity and engineer ergonomics.
+
+Some of the problems it solves:
+
+- **Framework Agnostic**: It's framework agnostic so you can use it with any framework you want.
+- **Easy to use**: The API is designed to be easy to use and understand.
+- **Great DX**: The API is designed to be easy to use and understand.
+- **Great DX**: The API is designed to be easy to use and understand.
+
+## Pluggable providers
+
+`usevoiceai` is designed to be pluggable so you can use any provider you want. We have a few providers out of the box:
+
+- **STT**: [Deepgram](https://deepgram.com/)
+- **TTS**: [Cartesia](https://cartesia.ai/)
+- **Agent**: [MockAgent](https://mockagent.com/)
+
+You can also create your own provider by implementing the `AgentProcessor` interface.
+
+```ts title="agent-processor.ts"
+import { AgentProcessor } from "usevoiceai";
+
+class MockAgentProcessor implements AgentProcessor {
+  constructor(private env: Env) {}
+  async process({
+    transcript,
+    send,
+  }: Parameters<AgentProcessor["process"]>[0]) {
+    // do something with the transcript and return response
+    await send({ type: "complete", data: { responseText: response } });
+  }
+}
+```

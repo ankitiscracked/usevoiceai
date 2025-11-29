@@ -1,11 +1,11 @@
-export interface VoiceAudioStreamInfo {
+export interface SpeechStreamInfo {
   encoding: string;
   sampleRate: number;
   channels: number;
   mimeType: string;
 }
 
-type VoiceAudioStreamReleaseHandler = (stream: VoiceAudioStream) => void;
+type SpeechStreamReleaseHandler = (stream: SpeechStream) => void;
 
 type PendingWaiter = {
   resolve: (result: IteratorResult<ArrayBuffer>) => void;
@@ -32,7 +32,7 @@ const toArrayBuffer = (chunk: ArrayBuffer | ArrayBufferView): ArrayBuffer => {
   return copied;
 };
 
-export class VoiceAudioStream implements AsyncIterableIterator<ArrayBuffer> {
+export class SpeechStream implements AsyncIterableIterator<ArrayBuffer> {
   readonly id: string;
   readonly encoding: string;
   readonly sampleRate: number;
@@ -43,10 +43,10 @@ export class VoiceAudioStream implements AsyncIterableIterator<ArrayBuffer> {
   private waiters: PendingWaiter[] = [];
   private closed = false;
   private error: Error | null = null;
-  private releaseHandlers = new Set<VoiceAudioStreamReleaseHandler>();
+  private releaseHandlers = new Set<SpeechStreamReleaseHandler>();
   private released = false;
 
-  constructor(info: VoiceAudioStreamInfo) {
+  constructor(info: SpeechStreamInfo) {
     this.id = createStreamId();
     this.encoding = info.encoding;
     this.sampleRate = info.sampleRate;
@@ -54,7 +54,7 @@ export class VoiceAudioStream implements AsyncIterableIterator<ArrayBuffer> {
     this.mimeType = info.mimeType;
   }
 
-  onRelease(handler: VoiceAudioStreamReleaseHandler): () => void {
+  onRelease(handler: SpeechStreamReleaseHandler): () => void {
     if (this.released) {
       handler(this);
       return () => {};

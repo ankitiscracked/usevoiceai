@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { useAudioPlayer } from "./useAudioPlayer";
-import { VoiceAudioStream } from "@usevoiceai/core";
+import { SpeechStream } from "@usevoiceai/core";
 
-export function useAudio({
+export function useSpeech({
   audioStream,
 }: {
-  audioStream: VoiceAudioStream | null;
+  audioStream: SpeechStream | null;
 }) {
   const audio = useAudioPlayer();
 

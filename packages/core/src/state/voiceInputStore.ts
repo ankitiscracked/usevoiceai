@@ -3,21 +3,21 @@ import type {
   VoiceCommandStage,
   VoiceCommandStatus,
 } from "../types";
-import type { VoiceAudioStream } from "../audio/voiceAudioStream";
+import type { SpeechStream } from "../audio/speechStream";
 import { SimpleEventEmitter } from "../utils/eventEmitter";
 
 interface StateEvents {
   change: VoiceCommandStatus;
   results: VoiceInputResult[];
   playback: boolean;
-  audioStream: VoiceAudioStream | null;
+  audioStream: SpeechStream | null;
   recording: boolean;
 }
 
 export class VoiceInputStore {
   private status: VoiceCommandStatus = { stage: "idle" };
   private results: VoiceInputResult[] = [];
-  private audioStream: VoiceAudioStream | null = null;
+  private audioStream: SpeechStream | null = null;
   private audioPlaying = false;
   private recording = false;
   private emitter = new SimpleEventEmitter<StateEvents>();
@@ -50,7 +50,7 @@ export class VoiceInputStore {
     return this.emitter.on("playback", handler);
   }
 
-  subscribeAudioStream(handler: (stream: VoiceAudioStream | null) => void) {
+  subscribeAudioStream(handler: (stream: SpeechStream | null) => void) {
     return this.emitter.on("audioStream", handler);
   }
 
@@ -87,7 +87,7 @@ export class VoiceInputStore {
     this.emitter.emit("results", this.results);
   }
 
-  setAudioStream(stream: VoiceAudioStream | null) {
+  setAudioStream(stream: SpeechStream | null) {
     this.audioStream = stream;
     this.emitter.emit("audioStream", stream);
   }

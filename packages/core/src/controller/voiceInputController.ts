@@ -1,7 +1,7 @@
 import { VoiceRecorder } from "../recorder/voiceRecorder";
 import { VoiceSocketClient } from "../socket/voiceSocketClient";
 import { VoiceInputStore } from "../state/voiceInputStore";
-import { VoiceAudioStream } from "../audio/voiceAudioStream";
+import { SpeechStream } from "../audio/speechStream";
 import type {
   SpeechEndDetectionConfig,
   SpeechEndDetectionMode,
@@ -33,7 +33,7 @@ export class VoiceInputController {
   private recorder: VoiceRecorder;
   private unsubSocket: (() => void) | null = null;
   private voiceInputResult: VoiceInputResult | null = null;
-  private audioStream: VoiceAudioStream | null = null;
+  private audioStream: SpeechStream | null = null;
   private store: VoiceInputStore;
   private speechEndDetection: NormalizedSpeechEndDetectionConfig;
 
@@ -156,7 +156,7 @@ export class VoiceInputController {
         break;
       case "tts.start":
         this.closeAudioStream();
-        this.audioStream = new VoiceAudioStream({
+        this.audioStream = new SpeechStream({
           encoding: (data?.encoding as string) ?? "linear16",
           sampleRate: (data?.sampleRate as number) ?? 48_000,
           channels: (data?.channels as number) ?? 1,
@@ -240,7 +240,7 @@ export class VoiceInputController {
     }
   }
 
-  private attachAudioStreamHandlers(stream: VoiceAudioStream) {
+  private attachAudioStreamHandlers(stream: SpeechStream) {
     stream.onRelease((released) => {
       const active = this.store.getAudioStream();
       if (active && active.id === released.id) {

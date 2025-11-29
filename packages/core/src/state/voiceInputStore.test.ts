@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { VoiceInputStore } from "./voiceInputStore";
-import { VoiceAudioStream } from "../audio/voiceAudioStream";
+import { SpeechStream } from "../audio/speechStream";
 
 describe("VoiceCommandStateStore", () => {
   it("updates status and notifies subscribers", () => {
@@ -37,7 +37,7 @@ describe("VoiceCommandStateStore", () => {
     const store = new VoiceInputStore();
     const handler = vi.fn();
     store.subscribeAudioStream(handler);
-    const stream = new VoiceAudioStream({
+    const stream = new SpeechStream({
       encoding: "linear16",
       sampleRate: 48_000,
       channels: 1,

@@ -3,7 +3,7 @@ import {
   VoiceInputResult,
   type VoiceSocketClientOptions,
   type VoiceCommandStatus,
-  type VoiceAudioStream,
+  type SpeechStream,
   type SpeechEndDetectionConfig,
   type VoiceSocketEvent,
   VoiceSocketClient,
@@ -27,7 +27,7 @@ export interface UseVoiceCommandOptions {
 export interface UseVoiceCommandResult {
   status: VoiceCommandStatus;
   results: VoiceInputResult[];
-  audioStream: VoiceAudioStream | null;
+  audioStream: SpeechStream | null;
   isAudioPlaying: boolean;
   isRecording: boolean;
   startRecording: () => Promise<void>;
