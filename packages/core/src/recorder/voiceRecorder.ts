@@ -40,14 +40,8 @@ export class VoiceRecorder {
       },
     });
 
-    const timezone =
-      typeof Intl !== "undefined" && "DateTimeFormat" in Intl
-        ? Intl.DateTimeFormat().resolvedOptions().timeZone
-        : "UTC";
-
     await this.options.sendJson({
       type: "start",
-      timezone,
       audio: {
         encoding: "opus",
         sampleRate: 48_000,

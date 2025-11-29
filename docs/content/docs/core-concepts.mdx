@@ -28,8 +28,8 @@ An async iterable of PCM chunks. `useAudio` consumes it and plays via Web Audio.
 
 - Accepts client control messages (`start`, `end`, `cancel`, `ping`) and audio.
 - Feeds audio into a `TranscriptionProvider`; forwards partial/final transcripts.
-- Calls your `AgentProcessor.process` with the final transcript; emits its `send` events back to the socket (e.g., `complete` with `responseText`).
-- Streams TTS via `SpeechProvider.stream`, wrapping binary audio with `tts.start` / `tts.end`.
+- Calls your `AgentProcessor.process` with the final transcript; you return `responseText` (string or object), and the SDK emits `complete`/TTS. `send` is available for custom events if you need them.
+- Streams TTS via `SpeechProvider.send`, wrapping binary audio with `tts.start` / `tts.end`. The returned `SpeechStream` is an async iterable of audio chunks if you want to tap the stream yourself.
 - Auto speech-end: if the provider signals it and mode is `auto`, it finalizes the turn without waiting for `end`.
 
 ## Transports

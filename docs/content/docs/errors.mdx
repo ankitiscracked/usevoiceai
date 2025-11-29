@@ -1,0 +1,87 @@
+---
+title: Error handling
+description: Error event shapes, codes, and how to handle them on client and server.
+---
+
+# Error handling
+
+Voice events use a simple, typed error shape so clients can branch on codes instead of parsing strings.
+
+- Wire shape: `type: "error"`, `data: { code: VoiceErrorCode; message: string; retryable?: boolean; details?: Record<string, unknown>; error?: string }`
+- Client state: `VoiceCommandStatus` exposes `error` and `errorCode` (mirrors the last error event).
+- Legacy compatibility: `data.error` mirrors `message` so older clients still render something sensible.
+
+## Error codes
+
+| Code | When it happens | Typical client action |
+| --- | --- | --- |
+| `SOCKET_UNAVAILABLE` | No WebSocket implementation in the environment | Inform user / polyfill / SSR guard |
+| `WS_URL_MISSING` | `url`/`buildUrl` did not return a value | Rebuild URL, check auth/token |
+| `INVALID_PAYLOAD` | Bad JSON or unsupported event type from client | Fix client payload; usually non-retryable |
+| `COMMAND_IN_PROGRESS` | A `start` arrived while a command is active | Ignore or queue locally |
+| `NO_ACTIVE_COMMAND` | `end`/audio received with no active command | Re-sync UI, start a new command |
+| `TRANSCRIPTION_FAILED` | STT stream could not start or errored/abort failed | Let user retry; check network/keys |
+| `AUDIO_FORWARD_FAILED` | Forwarding audio chunk to STT threw | Retry with fresh session; check mic/connection |
+| `AGENT_FAILED` | Agent processor threw/returned an error | Retryable if your agent allows; show message |
+| `TTS_FAILED` | Speech provider failed while streaming | Show text response and offer retry playback |
+| `FINALIZE_FAILED` | Finalizing command or auto-complete failed | Retry command; consider sending transcript again |
+| `RECORDER_START_FAILED` | MediaRecorder/mic start threw on client | Ask for mic permission / retry |
+| `UNKNOWN` | Fallback for anything unmapped | Generic error handling |
+
+`retryable` may be set by the server when it knows an operation can safely be retried.
+
+## Client handling examples
+
+### React (`useVoice`)
+
+```tsx
+const { status, startRecording, stopRecording } = useVoice();
+
+useEffect(() => {
+  if (status.stage === "error") {
+    switch (status.errorCode) {
+      case "TRANSCRIPTION_FAILED":
+      case "TTS_FAILED":
+        // Offer a retry
+        break;
+      case "RECORDER_START_FAILED":
+        // Ask for mic permission
+        break;
+      default:
+        // Fallback UI
+        break;
+    }
+  }
+}, [status]);
+```
+
+### Listening to error events on the socket
+
+```ts
+socket.onMessage((event) => {
+  if (event.type === "error") {
+    const { code, message, retryable } = event.data ?? {};
+    console.error("Voice error", code, message);
+    if (retryable) {
+      // trigger retry flow
+    }
+  }
+});
+```
+
+### Handling TTS iterator errors
+
+`VoiceAudioStream` rejects its iterator when `tts.end` arrives with `errored`. Catch it in your player:
+
+```ts
+for await (const chunk of audioStream) {
+  await playChunk(chunk);
+}
+// If the stream failed, the loop throws.
+```
+
+## Server guidance
+
+- Use `sendError(code, message, { retryable, details })` for consistent shape. Provider-specific errors should be mapped to the nearest code and surfaced via `message`; include structured `details` when helpful.
+- Keep `message` human-readable; use `code` for logic. Preserve `error` for backward compatibility.
+- Favor stable codes and treat unknown codes on the client as `UNKNOWN` without breaking.

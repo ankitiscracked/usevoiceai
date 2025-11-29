@@ -137,6 +137,10 @@ All these services provide generous free credits and getting API keys is super s
 - `bun run test` – executes unit tests in every workspace.
 - `bun run lint` – placeholder for linters.
 
+### Errors
+
+Error events use a typed shape: `type: "error", data: { code, message, retryable?, details? }`. Client state mirrors this on `status.error`/`status.errorCode`. See `docs/errors.md` for the code list and handling examples.
+
 ### Quick roadmap
 
 - Add support for local models

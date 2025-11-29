@@ -16,10 +16,14 @@ export interface Env {
 export interface VoiceCommandContext {
   userId: string;
   transcript: string;
-  timezone: string;
 }
 
-export interface TranscriptionStream {
+export type TranscriptEvent =
+  | { type: "transcript"; transcript: string; isFinal: boolean }
+  | { type: "speech-end"; hint?: SpeechEndHint }
+  | { type: "speech-start"; hint?: SpeechStartHint };
+
+export interface TranscriptStream extends AsyncIterable<TranscriptEvent> {
   send: (chunk: ArrayBuffer | ArrayBufferView) => void;
   finish: () => Promise<void>;
   abort: (reason?: string) => void;
@@ -42,28 +46,31 @@ export interface TranscriptionProvider {
     onSpeechEnd?: (hint?: SpeechEndHint) => void;
     onSpeechStart?: (hint?: SpeechStartHint) => void;
     speechEndDetection?: SpeechEndDetectionConfig;
-  }) => Promise<TranscriptionStream>;
+  }) => Promise<TranscriptStream>;
 }
 
 export interface AgentProcessor {
   process: (options: {
     transcript: string;
     userId: string;
-    timezone: string;
     excludeFromConversation?: () => boolean;
     send: (event: VoiceSocketEvent) => void | Promise<void>;
-  }) => Promise<void>;
+  }) => Promise<string | { responseText: string; [key: string]: any }>;
 }
 
 export interface SpeechProvider {
-  stream: (
+  send: (
     text: string,
     handlers: {
       onAudioChunk: (chunk: ArrayBuffer) => void;
       onClose: () => void;
       onError: (error: Error) => void;
     }
-  ) => Promise<void>;
+  ) => Promise<SpeechStream>;
+}
+
+export interface SpeechStream extends AsyncIterable<ArrayBuffer> {
+  cancel?: (reason?: string) => void;
 }
 
 export interface VoiceSessionOptions {

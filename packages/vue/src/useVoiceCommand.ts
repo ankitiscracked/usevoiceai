@@ -4,6 +4,7 @@ import {
   VoiceInputStore,
   type VoiceCommandStatus,
   type VoiceSocketClientOptions,
+  type VoiceSocketEvent,
   VoiceSocketClient,
 } from "@usevoiceai/core";
 import { createVoiceCommandBridge } from "./createVoiceCommandBridge";
@@ -17,6 +18,7 @@ export interface UseVoiceCommandOptions {
     success?: (message: string) => void;
     error?: (message: string) => void;
   };
+  onCustomEvent?: (event: VoiceSocketEvent) => void;
 }
 
 export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
@@ -25,7 +27,8 @@ export function useVoiceCommand(options: UseVoiceCommandOptions = {}) {
     socketOptions: options.socketOptions,
     state: options.state,
     mediaDevices: options.mediaDevices,
-    notifications: options.notifications
+    notifications: options.notifications,
+    onCustomEvent: options.onCustomEvent
   });
 
   const store = bridge.store;

@@ -1,4 +1,4 @@
-import type { SpeechProvider } from "@usevoiceai/server";
+import type { SpeechProvider, SpeechStream } from "@usevoiceai/server";
 import { CartesiaClient } from "@cartesia/cartesia-js";
 
 const DEFAULT_VOICE_ID = "66c6b81c-ddb7-4892-bdd5-19b5a7be38e7";
@@ -57,14 +57,25 @@ export class CartesiaSpeechProvider implements SpeechProvider {
         new CartesiaClient({ apiKey: this.apiKey }) as unknown as CartesiaClientLike);
   }
 
-  async stream(
+  async send(
     text: string,
-    handlers: Parameters<SpeechProvider["stream"]>[1]
-  ): Promise<void> {
+    handlers: Parameters<SpeechProvider["send"]>[1]
+  ): Promise<SpeechStream> {
     const normalized = text?.trim();
     if (!normalized) {
       handlers.onClose?.();
-      return;
+      return {
+        [Symbol.asyncIterator]() {
+          return {
+            next() {
+              return Promise.resolve({
+                value: undefined as any,
+                done: true,
+              });
+            },
+          };
+        },
+      };
     }
 
     const client = this.clientFactory();
@@ -72,6 +83,82 @@ export class CartesiaSpeechProvider implements SpeechProvider {
       | AsyncIterable<CartesiaStreamEvent>
       | AsyncIterator<CartesiaStreamEvent>
       | null = null;
+
+    const queued: ArrayBuffer[] = [];
+    const resolvers: Array<(result: IteratorResult<ArrayBuffer>) => void> = [];
+    const rejecters: Array<(error: Error) => void> = [];
+    let closed = false;
+    let failed: Error | null = null;
+
+    const pushChunk = (chunk: ArrayBuffer) => {
+      const resolve = resolvers.shift();
+      if (resolve) {
+        rejecters.shift();
+        resolve({ value: chunk, done: false });
+      } else {
+        queued.push(chunk);
+      }
+    };
+
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      while (resolvers.length) {
+        const resolve = resolvers.shift();
+        rejecters.shift();
+        resolve?.({ value: undefined as any, done: true });
+      }
+    };
+
+    const fail = (error: Error) => {
+      if (closed || failed) return;
+      failed = error;
+      while (rejecters.length) {
+        const reject = rejecters.shift();
+        resolvers.shift();
+        reject?.(error);
+      }
+    };
+
+    const speechStream: SpeechStream = {
+      cancel: (reason?: string) => {
+        const error = new Error(reason ?? "speech stream cancelled by caller");
+        fail(error);
+        close();
+      },
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            if (queued.length) {
+              const value = queued.shift()!;
+              return Promise.resolve({ value, done: false });
+            }
+            if (failed) {
+              return Promise.reject(failed);
+            }
+            if (closed) {
+              return Promise.resolve({
+                value: undefined as any,
+                done: true,
+              });
+            }
+            return new Promise<IteratorResult<ArrayBuffer>>(
+              (resolve, reject) => {
+                resolvers.push(resolve);
+                rejecters.push(reject);
+              }
+            );
+          },
+          return() {
+            close();
+            return Promise.resolve({
+              value: undefined as any,
+              done: true,
+            });
+          },
+        };
+      },
+    };
 
     try {
       stream = (await client.tts.sse({
@@ -92,7 +179,9 @@ export class CartesiaSpeechProvider implements SpeechProvider {
         switch (event.type) {
           case "chunk":
             if (typeof event.data === "string" && event.data.length > 0) {
-              handlers.onAudioChunk(base64ToArrayBuffer(event.data));
+              const chunk = base64ToArrayBuffer(event.data);
+              handlers.onAudioChunk(chunk);
+              pushChunk(chunk);
             }
             break;
           case "done":
@@ -115,11 +204,15 @@ export class CartesiaSpeechProvider implements SpeechProvider {
       }
 
       handlers.onClose?.();
+      close();
     } catch (cause) {
       const error = normalizeCartesiaError(cause);
+      fail(error);
       handlers.onError?.(error);
       throw error;
     }
+
+    return speechStream;
   }
 }
 

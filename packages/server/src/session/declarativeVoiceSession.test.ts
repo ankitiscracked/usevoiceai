@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   AgentProcessor,
   TranscriptionProvider,
-  TranscriptionStream,
+  TranscriptStream,
   SpeechProvider,
+  SpeechStream,
 } from "../types";
-import type { VoiceSocketEvent } from "@usevoiceai/core";
 import { createVoiceSession } from "./declarativeVoiceSession";
 
 class ControlledTranscriptionProvider implements TranscriptionProvider {
@@ -16,16 +16,29 @@ class ControlledTranscriptionProvider implements TranscriptionProvider {
 
   async createStream(
     options: Parameters<TranscriptionProvider["createStream"]>[0]
-  ): Promise<TranscriptionStream> {
+  ): Promise<TranscriptStream> {
     this.listeners = {
       onTranscript: options.onTranscript,
       onError: options.onError,
+    };
+
+    const transcriptStream: AsyncIterable<any> = {
+      [Symbol.asyncIterator]() {
+        return {
+          async next() {
+            return { value: undefined, done: true };
+          },
+        };
+      },
     };
 
     return {
       send: vi.fn(),
       finish: async () => {},
       abort: vi.fn(),
+      [Symbol.asyncIterator]() {
+        return transcriptStream[Symbol.asyncIterator]();
+      },
     };
   }
 
@@ -45,28 +58,39 @@ class ControlledTranscriptionProvider implements TranscriptionProvider {
 class InstantAgentProcessor implements AgentProcessor {
   async process({
     transcript,
-    send,
   }: Parameters<AgentProcessor["process"]>[0]) {
-    await send({
-      type: "complete",
-      data: {
-        intent: "fetch",
-        formattedContent: {
-          format: "text",
-          content: `agent:${transcript}`,
-        },
-      },
-    } as VoiceSocketEvent);
+    return { responseText: `agent:${transcript}` };
   }
 }
 
 class ChunkingTtsStreamer implements SpeechProvider {
-  async stream(
+  async send(
     text: string,
-    handlers: Parameters<SpeechProvider["stream"]>[1]
-  ): Promise<void> {
-    handlers.onAudioChunk(new TextEncoder().encode(text).buffer);
+    handlers: Parameters<SpeechProvider["send"]>[1]
+  ): Promise<SpeechStream> {
+    const buffer = new TextEncoder().encode(text).buffer;
+    handlers.onAudioChunk(buffer);
     handlers.onClose();
+
+    let emitted = false;
+    const speechStream: SpeechStream = {
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            if (!emitted) {
+              emitted = true;
+              return Promise.resolve({ value: buffer, done: false });
+            }
+            return Promise.resolve({
+              value: undefined as any,
+              done: true,
+            });
+          },
+        };
+      },
+    };
+
+    return speechStream;
   }
 }
 
@@ -138,9 +162,7 @@ describe("createVoiceWebSocketSession", () => {
     );
 
     const completeEvent = sentEvents.find((evt) => evt.type === "complete");
-    expect(completeEvent?.data?.formattedContent?.content).toBe(
-      "agent:hello world"
-    );
+    expect(completeEvent?.data?.responseText).toBe("agent:hello world");
     expect(binaryChunks).toHaveLength(1);
   });
 

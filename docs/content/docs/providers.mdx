@@ -13,6 +13,8 @@ const transcription = deepgram("nova-3", { apiKey: process.env.DEEPGRAM_API_KEY 
 
 Options: `keepAliveIntervalMs`, default `encoding/sampleRate/channels`, `clientFactory`. For auto speech-end, pass `speechEndDetection: { mode: "auto" }` from the client; the provider maps to Deepgram VAD settings.
 
+> **Workers note:** In Cloudflare/Deno runtimes there is no `process.env`. Always pass `apiKey` from your `env` bindings (e.g., `deepgram("nova-3", { apiKey: env.DEEPGRAM_API_KEY })`).
+
 ## Cartesia (TTS)
 
 ```ts
@@ -25,6 +27,8 @@ const speech = cartesia("sonic-3", {
 ```
 
 Streams PCM s16le 48kHz. You can override `voiceId` or inject a custom `clientFactory`.
+
+> **Workers note:** Provide `apiKey` explicitly from `env` (e.g., `cartesia("sonic-3", { apiKey: env.CARTESIA_API_KEY })`) since `process.env` is not available.
 
 ## Hume (TTS)
 
@@ -40,12 +44,19 @@ const speech = hume({
 
 Requires the optional `hume` dependency at runtime (the helper lazy-loads it).
 
+> **Workers note:** Provide `apiKey` from `env.HUME_API_KEY` in Workers/Deno instead of relying on `process.env`.
+
 ## Bring your own
 
 Implement `TranscriptionProvider`, `SpeechProvider`, or `AgentProcessor` from `@usevoiceai/server`:
 
-- `TranscriptionProvider.createStream({ send, finish, abort })`
-- `SpeechProvider.stream(text, { onAudioChunk, onClose, onError })`
-- `AgentProcessor.process({ transcript, send, userId })`
+- `TranscriptionProvider.createStream(options)` → returns a `TranscriptStream` you can `send` audio to and also `for await` transcripts/speech-end hints from.
+- `SpeechProvider.send(text, { onAudioChunk, onClose, onError })` → returns a `SpeechStream` that is itself `for await`-able for audio chunks (and supports optional `cancel()`).
+- `AgentProcessor.process({ transcript, userId, send })` → return a `string` or `{ responseText, ... }` and the SDK will emit a `complete` event and trigger TTS. Use `send` only for auxiliary/custom events (not for `complete`).
 
 Plug custom providers into `createVoiceSession`/`createVoiceDurableObject`/`registerNodeWebSocketServer`.
+
+### Async iterables
+
+- `TranscriptStream` is an async iterable of events: `{ type: "transcript" | "speech-end" | "speech-start", ... }`. You still drive audio input via `send()`, `finish()`, `abort()`.
+- `SpeechStream` is an async iterable of `ArrayBuffer` PCM chunks. You can consume it with `for await` or rely on the provided `onAudioChunk` handler.

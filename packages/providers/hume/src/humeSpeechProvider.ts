@@ -1,4 +1,4 @@
-import type { SpeechProvider } from "@usevoiceai/server";
+import type { SpeechProvider, SpeechStream } from "@usevoiceai/server";
 
 type HumeStreamEvent =
   | { type?: string; audio?: string; error?: string; message?: string }
@@ -84,14 +84,25 @@ export class HumeSpeechProvider implements SpeechProvider {
           };
   }
 
-  async stream(
+  async send(
     text: string,
-    handlers: Parameters<SpeechProvider["stream"]>[1]
-  ): Promise<void> {
+    handlers: Parameters<SpeechProvider["send"]>[1]
+  ): Promise<SpeechStream> {
     const normalized = text?.trim();
     if (!normalized) {
       handlers.onClose?.();
-      return;
+      return {
+        [Symbol.asyncIterator]() {
+          return {
+            next() {
+              return Promise.resolve({
+                value: undefined as any,
+                done: true,
+              });
+            },
+          };
+        },
+      };
     }
 
     const client = await this.clientFactory();
@@ -138,6 +149,84 @@ export class HumeSpeechProvider implements SpeechProvider {
     }
 
     let errorHandled = false;
+    const queued: ArrayBuffer[] = [];
+    const resolvers: Array<(result: IteratorResult<ArrayBuffer>) => void> = [];
+    const rejecters: Array<(error: Error) => void> = [];
+    let closed = false;
+    let failed: Error | null = null;
+
+    const pushChunk = (chunk: ArrayBuffer) => {
+      const resolve = resolvers.shift();
+      if (resolve) {
+        rejecters.shift();
+        resolve({ value: chunk, done: false });
+      } else {
+        queued.push(chunk);
+      }
+    };
+
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      while (resolvers.length) {
+        const resolve = resolvers.shift();
+        rejecters.shift();
+        resolve?.({ value: undefined as any, done: true });
+      }
+    };
+
+    const fail = (error: Error) => {
+      if (closed || failed) return;
+      failed = error;
+      while (rejecters.length) {
+        const reject = rejecters.shift();
+        resolvers.shift();
+        reject?.(error);
+      }
+    };
+
+    const speechStream: SpeechStream = {
+      cancel: (reason?: string) => {
+        const error = new Error(
+          reason ?? "speech stream cancelled by caller"
+        );
+        fail(error);
+        close();
+      },
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            if (queued.length) {
+              const value = queued.shift()!;
+              return Promise.resolve({ value, done: false });
+            }
+            if (failed) {
+              return Promise.reject(failed);
+            }
+            if (closed) {
+              return Promise.resolve({
+                value: undefined as any,
+                done: true,
+              });
+            }
+            return new Promise<IteratorResult<ArrayBuffer>>(
+              (resolve, reject) => {
+                resolvers.push(resolve);
+                rejecters.push(reject);
+              }
+            );
+          },
+          return() {
+            close();
+            return Promise.resolve({
+              value: undefined as any,
+              done: true,
+            });
+          },
+        };
+      },
+    };
+
     try {
       for await (const chunk of stream) {
         if (!chunk) continue;
@@ -146,7 +235,9 @@ export class HumeSpeechProvider implements SpeechProvider {
         if (type.toLowerCase() === "audio" && typeof (chunk as any).audio === "string") {
           const audio = (chunk as any).audio as string;
           if (audio.length > 0) {
-            handlers.onAudioChunk(base64ToArrayBuffer(audio));
+            const buffer = base64ToArrayBuffer(audio);
+            handlers.onAudioChunk(buffer);
+            pushChunk(buffer);
           }
           continue;
         }
@@ -164,14 +255,18 @@ export class HumeSpeechProvider implements SpeechProvider {
       }
 
       handlers.onClose?.();
+      close();
     } catch (cause) {
       if (errorHandled) {
         throw cause;
       }
       const error = normalizeHumeError(cause);
+      fail(error);
       handlers.onError(error);
       throw error;
     }
+
+    return speechStream;
   }
 }
 

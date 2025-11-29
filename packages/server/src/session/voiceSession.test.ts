@@ -5,7 +5,7 @@ import {
   MockSpeechProvider,
   MockTranscriptionProvider,
 } from "../mockProviders";
-import type { AgentProcessor, SpeechProvider } from "../types";
+import type { AgentProcessor, SpeechProvider, SpeechStream } from "../types";
 
 class ControlledSpeechProvider implements SpeechProvider {
   private handlers:
@@ -17,15 +17,59 @@ class ControlledSpeechProvider implements SpeechProvider {
     | null = null;
   private deferred: { resolve: () => void; reject: (error: Error) => void } | null =
     null;
+  private endIterators: Array<
+    (result: IteratorResult<ArrayBuffer>) => void
+  > = [];
+  private closed = false;
 
-  async stream(
+  async send(
     text: string,
-    handlers: Parameters<SpeechProvider["stream"]>[1]
-  ): Promise<void> {
+    handlers: Parameters<SpeechProvider["send"]>[1]
+  ): Promise<SpeechStream> {
     this.handlers = handlers;
+    const speechStream: SpeechStream = {
+      cancel: () => {
+        this.closed = true;
+        while (this.endIterators.length) {
+          const resolve = this.endIterators.shift();
+          resolve?.({ value: undefined as any, done: true });
+        }
+      },
+      [Symbol.asyncIterator]: () => ({
+        next: () => {
+          if (this.closed) {
+            return Promise.resolve({
+              value: undefined as any,
+              done: true,
+            });
+          }
+          return new Promise<IteratorResult<ArrayBuffer>>((resolve) => {
+            this.endIterators.push(resolve);
+          });
+        },
+        return: () => {
+          this.closed = true;
+          while (this.endIterators.length) {
+            const resolve = this.endIterators.shift();
+            resolve?.({ value: undefined as any, done: true });
+          }
+          return Promise.resolve({
+            value: undefined as any,
+            done: true,
+          });
+        },
+      }),
+    };
+
     await new Promise<void>((resolve, reject) => {
       this.deferred = { resolve, reject };
     });
+    this.closed = true;
+    while (this.endIterators.length) {
+      const resolve = this.endIterators.shift();
+      resolve?.({ value: undefined as any, done: true });
+    }
+    return speechStream;
   }
 
   close() {
@@ -36,6 +80,11 @@ class ControlledSpeechProvider implements SpeechProvider {
     this.deferred.resolve();
     this.handlers = null;
     this.deferred = null;
+    this.closed = true;
+    while (this.endIterators.length) {
+      const resolve = this.endIterators.shift();
+      resolve?.({ value: undefined as any, done: true });
+    }
   }
 }
 

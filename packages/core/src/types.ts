@@ -19,10 +19,34 @@ export type VoiceCommandStage =
   | "completed"
   | "error";
 
+export type VoiceErrorCode =
+  | "SOCKET_UNAVAILABLE"
+  | "WS_URL_MISSING"
+  | "INVALID_PAYLOAD"
+  | "COMMAND_IN_PROGRESS"
+  | "NO_ACTIVE_COMMAND"
+  | "TRANSCRIPTION_FAILED"
+  | "AUDIO_FORWARD_FAILED"
+  | "AGENT_FAILED"
+  | "TTS_FAILED"
+  | "FINALIZE_FAILED"
+  | "RECORDER_START_FAILED"
+  | "UNKNOWN";
+
+export interface VoiceError {
+  code: VoiceErrorCode;
+  message: string;
+  retryable?: boolean;
+  details?: Record<string, unknown>;
+  // Legacy compatibility for older clients inspecting `error`.
+  error?: string;
+}
+
 export interface VoiceCommandStatus {
   stage: VoiceCommandStage;
   transcript?: string | null;
   error?: string;
+  errorCode?: VoiceErrorCode;
   startedAt?: number;
 }
 
@@ -46,7 +70,7 @@ export type VoiceSocketEvent =
   | { type: "tts.start"; data?: Record<string, unknown> }
   | { type: "tts.end"; data?: { errored?: boolean } }
   | { type: "timeout"; data?: Record<string, unknown> }
-  | { type: "error"; data?: { error?: string } }
+  | { type: "error"; data?: VoiceError }
   | { type: "closed"; data?: { code?: number; reason?: string } }
   | { type: "pong"; data?: { timestamp?: number } }
   | { type: "speech-end.hint"; data?: { reason?: string; confidence?: number } }

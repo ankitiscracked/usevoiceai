@@ -21,6 +21,10 @@ export interface VoiceCommandControllerOptions {
     error?: (message: string) => void;
   };
   onVoiceInputResult?: (result: VoiceInputResult | null) => void;
+   /**
+    * Handle custom VoiceSocketEvent types that the controller does not process.
+    */
+  onCustomEvent?: (event: VoiceSocketEvent) => void;
   mediaDevices?: MediaDevices;
   speechEndDetection?: SpeechEndDetectionConfig;
 }
@@ -85,6 +89,7 @@ export class VoiceInputController {
       this.store.setStatus({
         stage: "error",
         error: error instanceof Error ? error.message : "Unknown error",
+        errorCode: "RECORDER_START_FAILED",
       });
       throw error;
     }
@@ -186,23 +191,29 @@ export class VoiceInputController {
         this.handleSpeechEndHint();
         break;
       case "error":
+        const message =
+          (data as any)?.message ??
+          (data as any)?.error ??
+          "Something went wrong while processing the voice input.";
+        const code = (data as any)?.code ?? "UNKNOWN";
         this.store.setStatus({
           stage: "error",
-          error:
-            data?.error ??
-            "Something went wrong while processing the voice input.",
+          error: message,
+          errorCode: code,
         });
         this.store.setStatus({ transcript: null });
         this.options.notifications?.error?.(
-          data?.error ??
-            "Something went wrong while processing the voice command."
+          message
         );
         break;
       case "closed":
         this.store.resetStatus();
         this.closeAudioStream();
         this.store.setAudioPlayback(false);
-        this.store.setStatus({ transcript: undefined });
+      this.store.setStatus({ transcript: undefined });
+      break;
+      default:
+        this.options.onCustomEvent?.(event);
         break;
     }
   }

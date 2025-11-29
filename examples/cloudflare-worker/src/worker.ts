@@ -19,7 +19,6 @@ class MockAgentProcessor implements AgentProcessor {
 
   async process({
     transcript,
-    send,
     excludeFromConversation = () => false,
   }: Parameters<AgentProcessor["process"]>[0]) {
     try {
@@ -48,21 +47,13 @@ class MockAgentProcessor implements AgentProcessor {
           content: text,
         });
       }
-
-      await send({
-        type: "complete",
-        data: {
-          responseText: text,
-        },
-      });
+      return text;
     } catch (error) {
       console.error("Error generating text", error);
-      await send({
-        type: "error",
-        data: {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
+      return {
+        responseText: "Something went wrong, please try again.",
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 }

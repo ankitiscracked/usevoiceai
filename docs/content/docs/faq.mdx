@@ -9,7 +9,7 @@ Add tokens to the URL via `buildUrl()` on the client or inject headers in your s
 
 ### Can I use custom STT/TTS?
 
-Yes. Implement `TranscriptionProvider`/`SpeechProvider` from `@usevoiceai/server` and plug them into the session factory.
+Yes. Implement `TranscriptionProvider`/`SpeechProvider` from `@usevoiceai/server` and plug them into the session factory. Both return async-iterable streams (`TranscriptStream` and `SpeechStream`) if you want to consume events/chunks directly.
 
 ### How do I auto-detect end of speech?
 

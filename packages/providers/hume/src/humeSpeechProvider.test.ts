@@ -32,7 +32,7 @@ describe("HumeSpeechProvider", () => {
         }) as any,
     });
 
-    await provider.stream("hello world", {
+    const stream = await provider.send("hello world", {
       onAudioChunk,
       onClose,
       onError: vi.fn(),
@@ -42,6 +42,12 @@ describe("HumeSpeechProvider", () => {
     expect(onClose).toHaveBeenCalled();
     expect(requests[0]?.stripHeaders).toBe(true);
     expect((requests[0] as any)?.format?.sampleRate).toBe(48_000);
+
+    const collected: ArrayBuffer[] = [];
+    for await (const chunk of stream) {
+      collected.push(chunk);
+    }
+    expect(collected.length).toBe(1);
   });
 
   it("surfaces error events", async () => {
@@ -59,7 +65,7 @@ describe("HumeSpeechProvider", () => {
     });
 
     await expect(
-      provider.stream("hello", {
+      provider.send("hello", {
         onAudioChunk: vi.fn(),
         onClose: vi.fn(),
         onError,

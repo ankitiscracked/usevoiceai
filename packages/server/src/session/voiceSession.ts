@@ -3,18 +3,18 @@ import type {
   SpeechEndHint,
   SpeechProvider,
   TranscriptionProvider,
-  TranscriptionStream,
+  TranscriptStream,
   VoiceSessionOptions,
 } from "../types";
 import type {
   SpeechEndDetectionConfig,
+  VoiceErrorCode,
   VoiceSocketEvent,
 } from "@usevoiceai/core";
 
 type ClientPayload =
   | {
       type: "start";
-      timezone?: string;
       audio?: AudioConfig;
       speechEndDetection?: SpeechEndDetectionConfig;
     }
@@ -34,8 +34,7 @@ type NormalizedSpeechEndDetectionConfig = SpeechEndDetectionConfig & {
 
 type ActiveCommand = {
   id: number;
-  timezone: string;
-  transcriber: TranscriptionStream;
+  transcriber: TranscriptStream;
   finalTranscriptChunks: string[];
   startedAt: number;
   speechEndDetection: NormalizedSpeechEndDetectionConfig;
@@ -115,7 +114,7 @@ export class VoiceSession {
     try {
       payload = JSON.parse(raw) as ClientPayload;
     } catch {
-      this.sendError("Invalid JSON payload");
+      this.sendError("INVALID_PAYLOAD", "Invalid JSON payload");
       return;
     }
 
@@ -136,7 +135,10 @@ export class VoiceSession {
         });
         break;
       default:
-        this.sendError(`Unsupported event type ${(payload as any).type}`);
+        this.sendError(
+          "INVALID_PAYLOAD",
+          `Unsupported event type ${(payload as any).type}`
+        );
     }
   }
 
@@ -144,7 +146,10 @@ export class VoiceSession {
     payload: Extract<ClientPayload, { type: "start" }>
   ) {
     if (this.activeCommand) {
-      this.sendError("A command is already in progress");
+      this.sendError(
+        "COMMAND_IN_PROGRESS",
+        "A command is already in progress"
+      );
       return;
     }
 
@@ -164,7 +169,6 @@ export class VoiceSession {
 
       this.activeCommand = {
         id: this.nextCommandId++,
-        timezone: payload.timezone ?? "UTC",
         transcriber,
         finalTranscriptChunks: [],
         startedAt: Date.now(),
@@ -181,6 +185,7 @@ export class VoiceSession {
       this.options.sendJson({ type: "command-started" });
     } catch (error) {
       this.sendError(
+        "TRANSCRIPTION_FAILED",
         error instanceof Error
           ? error.message
           : "Failed to start transcription stream"
@@ -191,7 +196,7 @@ export class VoiceSession {
   private async completeCommand(trigger: "manual" | "auto" = "manual") {
     const command = this.activeCommand;
     if (!command) {
-      this.sendError("No active command");
+      this.sendError("NO_ACTIVE_COMMAND", "No active command");
       return;
     }
 
@@ -206,11 +211,12 @@ export class VoiceSession {
       await command.transcriber.finish();
       const finalTranscript = command.finalTranscriptChunks.join(" ").trim();
       if (finalTranscript.length > 0) {
-        await this.processTranscript(command, finalTranscript);
+      await this.processTranscript(command, finalTranscript);
       }
       this.teardownActiveCommand("command complete");
     } catch (error) {
       this.sendError(
+        "FINALIZE_FAILED",
         error instanceof Error ? error.message : "Failed to finalize command"
       );
       this.teardownActiveCommand("finalization failed");
@@ -236,7 +242,10 @@ export class VoiceSession {
       this.activeCommand.transcriber.send(buffer);
     } catch (error) {
       this.sendError(
-        error instanceof Error ? error.message : "Failed to forward audio chunk"
+        "AUDIO_FORWARD_FAILED",
+        error instanceof Error
+          ? error.message
+          : "Failed to forward audio chunk"
       );
     }
   }
@@ -261,15 +270,43 @@ export class VoiceSession {
     });
 
     try {
-      await this.agentProcessor.process({
+      const result = await this.agentProcessor.process({
         transcript,
         userId: this.options.userId,
-        timezone: command.timezone,
         excludeFromConversation: () => turnState.skipResponse,
         send: (event: VoiceSocketEvent) => this.forwardAgentEvent(event),
       });
+
+      if (result === undefined || result === null) {
+        throw new Error("Agent returned no responseText");
+      }
+
+      const completeData =
+        typeof result === "string"
+          ? { responseText: result }
+          : result && typeof result === "object"
+            ? result
+            : null;
+
+      const responseText =
+        (completeData as any)?.responseText ??
+        (completeData as any)?.formattedContent?.content;
+
+      if (
+        !completeData ||
+        typeof responseText !== "string" ||
+        responseText.trim().length === 0
+      ) {
+        throw new Error("Agent responseText is required");
+      }
+
+      await this.forwardAgentEvent(
+        { type: "complete", data: completeData },
+        { allowComplete: true }
+      );
     } catch (error) {
       this.sendError(
+        "AGENT_FAILED",
         error instanceof Error ? error.message : "Agentic processing failed"
       );
     } finally {
@@ -279,7 +316,15 @@ export class VoiceSession {
     }
   }
 
-  private async forwardAgentEvent(event: VoiceSocketEvent) {
+  private async forwardAgentEvent(
+    event: VoiceSocketEvent,
+    options?: { allowComplete?: boolean }
+  ) {
+    if (event.type === "complete" && !options?.allowComplete) {
+      this.debug("agent-complete-ignored", { reason: "use return value" });
+      return;
+    }
+
     if (event.type === "complete" && this.activeCommand) {
       const turnState = this.activeCommand.pendingTurns.shift();
       if (turnState?.skipResponse) {
@@ -325,7 +370,7 @@ export class VoiceSession {
     this.ttsState = { streaming: true, interrupted: false, endSent: false };
     let handled = false;
     try {
-      await this.speechProvider.stream(text, {
+      await this.speechProvider.send(text, {
         onAudioChunk: (chunk) => {
           if (this.ttsState.endSent) {
             return;
@@ -337,7 +382,7 @@ export class VoiceSession {
         },
         onError: (error) => {
           handled = true;
-          this.sendError(error.message);
+          this.sendError("TTS_FAILED", error.message);
           this.endTtsStream({ errored: true });
         },
       });
@@ -345,7 +390,7 @@ export class VoiceSession {
       if (!handled) {
         const message =
           error instanceof Error ? error.message : "Failed to stream TTS audio";
-        this.sendError(message);
+        this.sendError("TTS_FAILED", message);
         this.endTtsStream({ errored: true });
       }
     } finally {
@@ -434,7 +479,7 @@ export class VoiceSession {
   }
 
   private handleTranscriptionError(error: Error) {
-    this.sendError(error.message);
+    this.sendError("TRANSCRIPTION_FAILED", error.message);
     this.teardownActiveCommand("transcriber error");
   }
 
@@ -459,7 +504,7 @@ export class VoiceSession {
         error instanceof Error
           ? error.message
           : "Failed to process auto voice command";
-      this.sendError(message);
+      this.sendError("AGENT_FAILED", message);
     } finally {
       if (this.activeCommand && this.activeCommand.id === command.id) {
         this.activeCommand.speechEndHintDispatched = false;
@@ -477,16 +522,29 @@ export class VoiceSession {
       this.activeCommand.transcriber.abort(reason);
     } catch {
       console.error("Failed to abort transcription stream", reason);
-      this.sendError(`Failed to abort transcription stream: ${reason}`);
+      this.sendError(
+        "TRANSCRIPTION_FAILED",
+        `Failed to abort transcription stream: ${reason}`
+      );
       // ignore
     }
     this.activeCommand = null;
   }
 
-  private sendError(message: string) {
+  private sendError(
+    code: VoiceErrorCode,
+    message: string,
+    extra?: { retryable?: boolean; details?: Record<string, unknown> }
+  ) {
     this.options.sendJson({
       type: "error",
-      data: { error: message },
+      data: {
+        code,
+        message,
+        error: message,
+        ...(extra?.retryable ? { retryable: true } : {}),
+        ...(extra?.details ? { details: extra.details } : {}),
+      },
     });
   }
 
@@ -595,7 +653,7 @@ export class VoiceSession {
       this.completeCommand("auto").catch((error) => {
         const message =
           error instanceof Error ? error.message : "Failed to auto-complete";
-        this.sendError(message);
+        this.sendError("FINALIZE_FAILED", message);
       });
       return;
     }

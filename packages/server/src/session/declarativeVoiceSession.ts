@@ -238,10 +238,13 @@ export function createVoiceSession(
           if (!activeCommand.agentComplete.settled()) {
             activeCommand.agentComplete.resolve(event);
           }
+          const responseText =
+            (event.data as any)?.responseText ??
+            (event.data as any)?.formattedContent?.content;
           const expectsTts =
             Boolean(options.providers.speech) &&
-            typeof event.data?.formattedContent?.content === "string" &&
-            event.data.formattedContent.content.length > 0;
+            typeof responseText === "string" &&
+            responseText.length > 0;
           activeCommand.awaitingTts = expectsTts;
 
           if (!expectsTts) {
@@ -270,7 +273,11 @@ export function createVoiceSession(
         break;
       case "error":
         failCommand(
-          new Error(event.data?.error ?? "voice session encountered an error")
+          new Error(
+            (event.data as any)?.message ??
+              (event.data as any)?.error ??
+              "voice session encountered an error"
+          )
         );
         break;
       default:

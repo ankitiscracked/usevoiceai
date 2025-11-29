@@ -1,7 +1,8 @@
 import { DeepgramClient, LiveTranscriptionEvents } from "@deepgram/sdk";
 import type {
   TranscriptionProvider,
-  TranscriptionStream,
+  TranscriptEvent,
+  TranscriptStream,
 } from "@usevoiceai/server";
 
 const DeepgramEvents = {
@@ -75,7 +76,77 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
     speechEndDetection,
   }: Parameters<
     TranscriptionProvider["createStream"]
-  >[0]): Promise<TranscriptionStream> {
+  >[0]): Promise<TranscriptStream> {
+    const queuedEvents: TranscriptEvent[] = [];
+    const pendingResolvers: Array<
+      (result: IteratorResult<TranscriptEvent>) => void
+    > = [];
+    const pendingRejecters: Array<(error: Error) => void> = [];
+    let closed = false;
+    let failed: Error | null = null;
+
+    const pushEvent = (event: TranscriptEvent) => {
+      if (closed || failed) return;
+      const resolve = pendingResolvers.shift();
+      if (resolve) {
+        pendingRejecters.shift();
+        resolve({ value: event, done: false });
+      } else {
+        queuedEvents.push(event);
+      }
+    };
+
+    const closeQueue = () => {
+      if (closed) return;
+      closed = true;
+      while (pendingResolvers.length) {
+        const resolve = pendingResolvers.shift();
+        pendingRejecters.shift();
+        resolve?.({ value: undefined as any, done: true });
+      }
+    };
+
+    const failQueue = (error: Error) => {
+      if (closed || failed) {
+        return;
+      }
+      failed = error;
+      while (pendingRejecters.length) {
+        const reject = pendingRejecters.shift();
+        pendingResolvers.shift();
+        reject?.(error);
+      }
+    };
+
+    const transcriptStream: AsyncIterable<TranscriptEvent> = {
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            if (queuedEvents.length) {
+              const value = queuedEvents.shift()!;
+              return Promise.resolve({ value, done: false });
+            }
+            if (failed) {
+              return Promise.reject(failed);
+            }
+            if (closed) {
+              return Promise.resolve({ value: undefined as any, done: true });
+            }
+            return new Promise<IteratorResult<TranscriptEvent>>(
+              (resolve, reject) => {
+                pendingResolvers.push(resolve);
+                pendingRejecters.push(reject);
+              }
+            );
+          },
+          return() {
+            closeQueue();
+            return Promise.resolve({ value: undefined as any, done: true });
+          }
+        };
+      }
+    };
+
     const client = this.clientFactory();
     const detectionOptions = (speechEndDetection?.options ??
       {}) as Record<string, unknown>;
@@ -152,8 +223,10 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       finishSettled = true;
       if (error) {
         finishReject?.(error);
+        failQueue(error);
       } else {
         finishResolve?.();
+        closeQueue();
       }
     };
 
@@ -198,10 +271,10 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       const alternative = data?.channel?.alternatives?.[0];
       const transcript = alternative?.transcript as string | undefined;
       if (!transcript) return;
-      onTranscript({
-        transcript,
-        isFinal: Boolean(data?.is_final),
-      });
+      const isFinal = Boolean(data?.is_final);
+      const event = { transcript, isFinal };
+      onTranscript(event);
+      pushEvent({ type: "transcript", transcript, isFinal });
       if (
         autoStopEnabled &&
         speechEndHinted &&
@@ -216,10 +289,12 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
         (data?.speech_final === true || data?.is_final === true)
       ) {
         speechEndHinted = true;
-        onSpeechEnd?.({
+        const hint = {
           reason: data?.speech_final ? "speech_final" : "is_final",
           providerPayload: data,
-        });
+        };
+        onSpeechEnd?.(hint);
+        pushEvent({ type: "speech-end", hint });
       }
     });
 
@@ -228,10 +303,12 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
         return;
       }
       speechEndHinted = true;
-      onSpeechEnd?.({
+      const hint = {
         reason: "utterance_end",
         providerPayload: data,
-      });
+      };
+      onSpeechEnd?.(hint);
+      pushEvent({ type: "speech-end", hint });
     });
 
     stream.on(DeepgramEvents.Close, () => {
@@ -284,6 +361,9 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
         settleFinish(
           reason ? new Error(reason) : new Error("transcription aborted")
         );
+      },
+      [Symbol.asyncIterator]() {
+        return transcriptStream[Symbol.asyncIterator]();
       },
     };
   }

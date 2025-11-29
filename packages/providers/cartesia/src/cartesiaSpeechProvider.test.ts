@@ -14,7 +14,7 @@ describe("CartesiaTtsStreamer", () => {
     ).toThrow();
   });
 
-  it("streams audio chunks", async () => {
+  it("streams audio chunks and exposes iterable", async () => {
     const onAudioChunk = vi.fn();
     const onClose = vi.fn();
 
@@ -34,7 +34,7 @@ describe("CartesiaTtsStreamer", () => {
         } as any),
     });
 
-    await streamer.stream("hello", {
+    const stream = await streamer.send("hello", {
       onAudioChunk,
       onClose,
       onError: vi.fn(),
@@ -42,5 +42,11 @@ describe("CartesiaTtsStreamer", () => {
 
     expect(onAudioChunk).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+
+    const collected: ArrayBuffer[] = [];
+    for await (const chunk of stream) {
+      collected.push(chunk);
+    }
+    expect(collected.length).toBe(1);
   });
 });
