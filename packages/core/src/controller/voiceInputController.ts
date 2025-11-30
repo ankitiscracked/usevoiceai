@@ -21,9 +21,9 @@ export interface VoiceCommandControllerOptions {
     error?: (message: string) => void;
   };
   onVoiceInputResult?: (result: VoiceInputResult | null) => void;
-   /**
-    * Handle custom VoiceSocketEvent types that the controller does not process.
-    */
+  /**
+   * Handle custom VoiceSocketEvent types that the controller does not process.
+   */
   onCustomEvent?: (event: VoiceSocketEvent) => void;
   mediaDevices?: MediaDevices;
   speechEndDetection?: SpeechEndDetectionConfig;
@@ -66,7 +66,6 @@ export class VoiceInputController {
     }
 
     this.unsubSocket = this.options.socket.subscribe((event) => {
-      console.log("handing socket event", event);
       this.handleSocketEvent(event);
     });
   }
@@ -202,16 +201,14 @@ export class VoiceInputController {
           errorCode: code,
         });
         this.store.setStatus({ transcript: null });
-        this.options.notifications?.error?.(
-          message
-        );
+        this.options.notifications?.error?.(message);
         break;
       case "closed":
         this.store.resetStatus();
         this.closeAudioStream();
         this.store.setAudioPlayback(false);
-      this.store.setStatus({ transcript: undefined });
-      break;
+        this.store.setStatus({ transcript: undefined });
+        break;
       default:
         this.options.onCustomEvent?.(event);
         break;
@@ -265,7 +262,10 @@ export class VoiceInputController {
     this.store.pushResult(result);
     this.voiceInputResult = result;
     this.options.onVoiceInputResult?.(result);
-    if (this.speechEndDetection.mode === "auto" && !this.store.isAudioPlaying()) {
+    if (
+      this.speechEndDetection.mode === "auto" &&
+      !this.store.isAudioPlaying()
+    ) {
       this.enterRecordingStage();
     }
   }
@@ -281,13 +281,6 @@ export class VoiceInputController {
     const status = this.store.getStatus();
     const chunkSize =
       chunk instanceof Blob ? chunk.size : chunk.byteLength ?? 0;
-    console.log("[voice-recorder] sending chunk", {
-      stage: status.stage,
-      transcript: status.transcript,
-      chunkSize,
-      audioPlaying: this.store.isAudioPlaying(),
-      mode: this.speechEndDetection.mode,
-    });
     await this.options.socket.sendBinary(chunk);
   }
 

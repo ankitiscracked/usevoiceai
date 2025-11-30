@@ -63,7 +63,6 @@ export class VoiceInputStore {
   }
 
   setStatus(patch: Partial<VoiceCommandStatus>) {
-    console.log("setStatus", patch);
     this.status = { ...this.status, ...patch };
     this.emitter.emit("change", this.status);
   }

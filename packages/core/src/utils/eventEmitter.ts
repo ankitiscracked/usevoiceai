@@ -29,7 +29,6 @@ export class SimpleEventEmitter<TEvents extends Record<string, any>> {
     this.listeners[event]?.forEach((listener) => {
       listener(payload);
     });
-    console.log("emit", event, payload);
   }
 
   removeAllListeners() {

@@ -146,10 +146,7 @@ export class VoiceSession {
     payload: Extract<ClientPayload, { type: "start" }>
   ) {
     if (this.activeCommand) {
-      this.sendError(
-        "COMMAND_IN_PROGRESS",
-        "A command is already in progress"
-      );
+      this.sendError("COMMAND_IN_PROGRESS", "A command is already in progress");
       return;
     }
 
@@ -211,7 +208,7 @@ export class VoiceSession {
       await command.transcriber.finish();
       const finalTranscript = command.finalTranscriptChunks.join(" ").trim();
       if (finalTranscript.length > 0) {
-      await this.processTranscript(command, finalTranscript);
+        await this.processTranscript(command, finalTranscript);
       }
       this.teardownActiveCommand("command complete");
     } catch (error) {
@@ -243,9 +240,7 @@ export class VoiceSession {
     } catch (error) {
       this.sendError(
         "AUDIO_FORWARD_FAILED",
-        error instanceof Error
-          ? error.message
-          : "Failed to forward audio chunk"
+        error instanceof Error ? error.message : "Failed to forward audio chunk"
       );
     }
   }
@@ -258,12 +253,6 @@ export class VoiceSession {
     command.activeTurnId = turnId;
     const turnState = { id: turnId, skipResponse: false };
     command.pendingTurns.push(turnState);
-    this.debug("turn-start", {
-      commandId: command.id,
-      turnId,
-      transcriptLength: transcript.length,
-      transcript,
-    });
     this.options.sendJson({
       type: "transcript.final",
       data: { transcript },
@@ -285,8 +274,8 @@ export class VoiceSession {
         typeof result === "string"
           ? { responseText: result }
           : result && typeof result === "object"
-            ? result
-            : null;
+          ? result
+          : null;
 
       const responseText =
         (completeData as any)?.responseText ??
@@ -321,24 +310,15 @@ export class VoiceSession {
     options?: { allowComplete?: boolean }
   ) {
     if (event.type === "complete" && !options?.allowComplete) {
-      this.debug("agent-complete-ignored", { reason: "use return value" });
       return;
     }
 
     if (event.type === "complete" && this.activeCommand) {
       const turnState = this.activeCommand.pendingTurns.shift();
       if (turnState?.skipResponse) {
-        this.debug("turn-complete-skipped", {
-          commandId: this.activeCommand.id,
-          turnId: turnState.id,
-        });
         return;
       }
       if (turnState) {
-        this.debug("turn-complete", {
-          commandId: this.activeCommand.id,
-          turnId: turnState.id,
-        });
       }
     }
 
@@ -454,10 +434,6 @@ export class VoiceSession {
         );
         if (turnStateIndex !== -1) {
           this.activeCommand.pendingTurns[turnStateIndex].skipResponse = true;
-          this.debug("turn-marked-skip", {
-            commandId: this.activeCommand.id,
-            turnId: activeTurnId,
-          });
         }
         this.activeCommand.activeTurnId = null;
       }
@@ -472,9 +448,6 @@ export class VoiceSession {
       this.ttsState.interrupted = true;
       this.endTtsStream({ interrupted: true });
       this.ttsState.streaming = false;
-      this.debug("tts-interrupted-by-transcript", {
-        commandId: this.activeCommand.id,
-      });
     }
   }
 
@@ -486,11 +459,6 @@ export class VoiceSession {
   private async finalizeAutoTurn(command: ActiveCommand) {
     const transcript = command.finalTranscriptChunks.join(" ").trim();
     command.finalTranscriptChunks = [];
-
-    this.debug("auto-finalize", {
-      commandId: command.id,
-      transcriptLength: transcript.length,
-    });
 
     if (transcript.length === 0) {
       command.speechEndHintDispatched = false;
@@ -568,16 +536,6 @@ export class VoiceSession {
     });
   }
 
-  private debug(message: string, data?: Record<string, unknown>) {
-    if (typeof console !== "undefined") {
-      if (typeof console.debug === "function") {
-        console.debug(`[voice-session] ${message}`, data ?? {});
-      } else if (typeof console.log === "function") {
-        console.log(`[voice-session] ${message}`, data ?? {});
-      }
-    }
-  }
-
   private touch() {
     this.lastActivity = Date.now();
     this.scheduleInactivityTimer();
@@ -628,13 +586,6 @@ export class VoiceSession {
     if (!this.activeCommand) {
       return;
     }
-
-    this.debug("speech-end-hint", {
-      commandId: this.activeCommand.id,
-      mode: this.activeCommand.speechEndDetection.mode,
-      reason: hint?.reason,
-      confidence: hint?.confidence,
-    });
 
     this.options.sendJson({
       type: "speech-end.hint",
