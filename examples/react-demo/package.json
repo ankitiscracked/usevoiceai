@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@tanstack/react-router": "^1.136.11",
-    "@usevoiceai/react": "workspace:*",
+    "@usevoiceai/react": "^0.1.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

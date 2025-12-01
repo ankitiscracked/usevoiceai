@@ -1,6 +1,6 @@
 {
   "name": "@usevoiceai/example-worker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,12 +9,9 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.32",
-    "@cartesia/cartesia-js": "^2.2.9",
-    "@deepgram/sdk": "^4.11.2",
-    "@usevoiceai/cartesia": "workspace:*",
-    "@usevoiceai/core": "workspace:*",
-    "@usevoiceai/deepgram": "workspace:*",
-    "@usevoiceai/server": "workspace:*",
+    "@usevoiceai/cartesia": "^0.1.1",
+    "@usevoiceai/deepgram": "^0.1.1",
+    "@usevoiceai/server": "^0.1.1",
     "ai": "^5.0.93"
   },
   "devDependencies": {
