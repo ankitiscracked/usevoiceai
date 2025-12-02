@@ -1,6 +1,6 @@
 {
   "name": "@usevoiceai/cartesia",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Cartesia speech provider integration for the usevoiceai server pipeline.",
   "license": "Apache-2.0",
   "type": "module",
