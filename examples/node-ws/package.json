@@ -1,22 +1,22 @@
 {
-  "name": "@usevoiceai/example-worker",
-  "version": "0.1.1",
+  "name": "@usevoiceai/example-node-ws",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev src/worker.ts --local",
-    "deploy": "wrangler deploy"
+    "dev": "bun src/server.ts",
+    "start": "bun src/server.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.32",
     "@usevoiceai/cartesia": "workspace:*",
     "@usevoiceai/deepgram": "workspace:*",
     "@usevoiceai/server": "workspace:*",
-    "ai": "^5.0.93"
+    "ai": "^5.0.93",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241004.0",
-    "typescript": "^5.6.3",
-    "wrangler": "^4.46.0"
+    "@types/node": "^22.9.4",
+    "typescript": "^5.6.3"
   }
 }
