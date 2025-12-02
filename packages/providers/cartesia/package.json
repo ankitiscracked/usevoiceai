@@ -34,11 +34,6 @@
   "peerDependencies": {
     "@cartesia/cartesia-js": "^2.2.9"
   },
-  "peerDependenciesMeta": {
-    "@cartesia/cartesia-js": {
-      "optional": true
-    }
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ankitiscracked/usevoiceai.git"

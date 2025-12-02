@@ -34,11 +34,6 @@
   "peerDependencies": {
     "@deepgram/sdk": "^3.3.0"
   },
-  "peerDependenciesMeta": {
-    "@deepgram/sdk": {
-      "optional": true
-    }
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ankitiscracked/usevoiceai.git"
