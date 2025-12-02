@@ -1,18 +1,17 @@
 import React, { useMemo } from "react";
+import { useTheme } from "next-themes";
 
 interface LogoProps {
   size?: number;
-  color1?: string; // Primary (e.g., Black)
-  color2?: string; // Secondary (e.g., Dark Gray)
   className?: string;
 }
 
 const UseVoiceAILogo: React.FC<LogoProps> = ({
   size = 256,
-  color1 = "black",
-  color2 = "#555555",
   className = "",
 }) => {
+  const { theme } = useTheme();
+  const barColor = theme === "dark" ? "#ffffff" : "#000000";
   // --- Configuration Constants ---
   const VIEWBOX_SIZE = 100;
   const U_BAR_W = 2.5;
@@ -71,9 +70,9 @@ const UseVoiceAILogo: React.FC<LogoProps> = ({
     });
 
     // --- Color Assignment for Outer ---
-    const outerWithColors = outer.map((bar, index) => ({
+    const outerWithColors = outer.map((bar) => ({
       ...bar,
-      color: index % 2 === 0 ? color1 : color2,
+      color: barColor,
     }));
 
     // --- Inner V Calculation ---
@@ -94,50 +93,20 @@ const UseVoiceAILogo: React.FC<LogoProps> = ({
       gx -= STEP;
     }
 
-    // Heights and Colors
+    // Heights
     const V_MIN_H = 6.0;
     const V_MAX_H = 52.0;
-
-    // Find the reference color to align phases.
-    // We look for the Bottom Straight bar at x=48.8 (approx).
-    const refOuterIndex = outerWithColors.findIndex(
-      (b) => b.type === "straight" && b.y === 86.0 && Math.abs(b.x - 48.8) < 0.1
-    );
-    const refColor =
-      refOuterIndex !== -1 ? outerWithColors[refOuterIndex].color : color1;
-
-    // Find the Inner bar index at x=48.8
-    const refInnerIndex = gridX.findIndex((x) => Math.abs(x - 48.8) < 0.1);
 
     const inner = gridX.map((x, index) => {
       // Linear Height Growth
       const t = index / (gridX.length - 1);
       const h = V_MIN_H + (V_MAX_H - V_MIN_H) * t;
 
-      // Color Alignment Logic
-      let barColor = color1;
-
-      if (refInnerIndex !== -1) {
-        // Calculate distance from reference index to determine color phase
-        const dist = Math.abs(index - refInnerIndex);
-        // If dist is even, same color. If odd, swap.
-        const isSamePhase = dist % 2 === 0;
-
-        if (refColor === color1) {
-          barColor = isSamePhase ? color1 : color2;
-        } else {
-          barColor = isSamePhase ? color2 : color1;
-        }
-      } else {
-        // Fallback default alternation
-        barColor = index % 2 === 0 ? color1 : color2;
-      }
-
       return { x, y: 50.0, h, color: barColor };
     });
 
     return { outerBars: outerWithColors, innerBars: inner };
-  }, [color1, color2]);
+  }, [barColor]);
 
   return (
     <svg

@@ -1,8 +1,7 @@
+import { TabbedCodeHighlight } from "@/components/tabbed-code-highlight";
+import { baseOptions } from "@/lib/layout.shared";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
-import { baseOptions } from "@/lib/layout.shared";
-import { TabbedCodeHighlight } from "@/components/tabbed-code-highlight";
-import { highlightCode } from "@/lib/code-highlighter";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -39,14 +38,14 @@ const { stop } = useSpeech({ speechStream });`,
       },
     ];
 
-    const highlightedSnippets = await Promise.all(
-      snippets.map(async (snippet) => ({
-        ...snippet,
-        html: await highlightCode(snippet.code, snippet.language),
-      }))
-    );
+    // const highlightedSnippets = await Promise.all(
+    //   snippets.map(async (snippet) => ({
+    //     ...snippet,
+    //     html: await highlightCode(snippet.code, snippet.language),
+    //   }))
+    // );
 
-    return { snippets: highlightedSnippets };
+    return { snippets };
   },
 });
 
@@ -54,10 +53,10 @@ function Home() {
   const { snippets } = Route.useLoaderData();
 
   return (
-    <HomeLayout {...baseOptions()} className="mt-16">
-      <div className="flex flex-col lg:flex-row items-center justify-between lg:max-w-[80%] xl:w-fd-container 2xl:max-w-fd-container mx-auto px-4 min-h-[60vh] gap-12 lg:gap-24">
+    <HomeLayout {...baseOptions()} className="">
+      <div className="flex flex-col lg:flex-row items-center justify-between lg:max-w-[80%] xl:w-fd-container 2xl:max-w-fd-container mx-auto px-4 min-h-[60vh] gap-12 lg:gap-24 mt-12">
         <div className="flex-1 shrink-0 text-center lg:text-left w-1/2">
-          <h1 className="font-medium text-2xl mb-4 text-left">
+          <h1 className="font text-3xl mb-4 text-left tracking-tight">
             The Typescript toolkit for ambitious voice AI apps
           </h1>
           <Link
@@ -65,7 +64,7 @@ function Home() {
             params={{
               _splat: "",
             }}
-            className="px-3 py-2 rounded-lg bg-fd-primary text-fd-primary-foreground font-medium text-sm mx-auto inline-block"
+            className="px-3 py-2 rounded-sm bg-zinc-800 dark:bg-zinc-200 text-zinc-200 dark:text-zinc-800 text-sm mx-auto inline-block"
           >
             Get Started
           </Link>

@@ -10,6 +10,15 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+
+  optimizeDeps: {
+    include: [
+      "style-to-js",
+      "style-to-object",
+      "hast-util-to-jsx-runtime",
+      "hast-util-to-estree",
+    ],
+  },
   plugins: [
     mdx(await import("./source.config")),
     tailwindcss(),
@@ -25,7 +34,6 @@ export default defineConfig({
           crawlLinks: true,
         },
       },
-
       pages: [
         {
           path: "/docs",

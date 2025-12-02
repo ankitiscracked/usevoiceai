@@ -1,12 +1,12 @@
-@import '@fontsource/geist/400.css';
-@import '@fontsource/geist/500.css';
-@import '@fontsource/geist/600.css';
-@import '@fontsource/geist/700.css';
-@import '@fontsource/jetbrains-mono/400.css';
-@import '@fontsource/jetbrains-mono/600.css';
-@import 'tailwindcss';
-@import 'fumadocs-ui/css/neutral.css';
-@import 'fumadocs-ui/css/preset.css';
+@import "@fontsource/geist/400.css";
+@import "@fontsource/geist/500.css";
+@import "@fontsource/geist/600.css";
+@import "@fontsource/geist/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/600.css";
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
 
 @theme {
   --font-family-geist: Geist, sans-serif;
@@ -21,10 +21,9 @@
 }
 
 /* Shiki dual theme support */
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   .shiki,
   .shiki span {
     color: var(--shiki-dark) !important;
   }
-}
-
+} */
