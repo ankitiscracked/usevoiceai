@@ -45,6 +45,7 @@ export function useVoice(options: UseVoiceOptions = {}) {
 
   const unsubStatus = store.subscribe((next) => {
     status.value = next;
+    isRecording.value = store.isRecording();
   });
   const unsubResults = store.subscribeResults((next) => {
     results.value = next;
@@ -54,9 +55,6 @@ export function useVoice(options: UseVoiceOptions = {}) {
   });
   const unsubPlayback = store.subscribePlayback((playing) => {
     isAudioPlaying.value = playing;
-  });
-  const unsubRecording = store.subscribeRecording((recording) => {
-    isRecording.value = recording;
   });
 
   const unsubQuery = bridge.subscribeQueryResponse((result) => {
@@ -68,7 +66,6 @@ export function useVoice(options: UseVoiceOptions = {}) {
     unsubResults();
     unsubAudio();
     unsubPlayback();
-    unsubRecording();
     unsubQuery();
     bridge.destroy();
   });

@@ -80,11 +80,9 @@ export class VoiceInputController {
 
   async startRecording() {
     this.enterRecordingStage();
-    this.store.setRecording(true);
     try {
       await this.recorder.start();
     } catch (error) {
-      this.store.setRecording(false);
       this.store.setStatus({
         stage: "error",
         error: error instanceof Error ? error.message : "Unknown error",
@@ -107,7 +105,6 @@ export class VoiceInputController {
     this.unsubSocket = null;
     this.closeAudioStream();
     this.store.resetButKeepResults();
-    this.store.setRecording(false);
   }
 
   private async handleSocketReady() {
@@ -118,7 +115,6 @@ export class VoiceInputController {
   }
 
   private async handleRecordingEnded() {
-    this.store.setRecording(false);
     this.store.updateStage("processing");
   }
 
@@ -127,7 +123,6 @@ export class VoiceInputController {
     this.closeAudioStream();
     this.store.setAudioPlayback(false);
     this.store.setStatus({ transcript: undefined });
-    this.store.setRecording(false);
   }
 
   private async handleSocketEvent(event: VoiceSocketEvent | ArrayBuffer) {

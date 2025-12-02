@@ -65,7 +65,7 @@ describe("@usevoiceai/react useVoice", () => {
     expect(result.current.isRecording).toBe(false);
 
     await act(async () => {
-      store.setRecording(true);
+      store.setStatus({ stage: "recording" });
     });
 
     expect(result.current.isRecording).toBe(true);

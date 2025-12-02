@@ -39,7 +39,7 @@ describe("@usevoiceai/vue useVoice", () => {
   it("updates recording state", () => {
     const { isRecording } = useVoice({ state: store, socket: socket as any });
     expect(isRecording.value).toBe(false);
-    store.setRecording(true);
+    store.setStatus({ stage: "recording" });
     expect(isRecording.value).toBe(true);
   });
 });

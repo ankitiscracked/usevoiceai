@@ -81,10 +81,7 @@ export function useVoice(
     (callback) => store.subscribePlayback(callback),
     () => store.isAudioPlaying()
   );
-  const isRecording = useSyncExternalStore(
-    (callback) => store.subscribeRecording(callback),
-    () => store.isRecording()
-  );
+  const isRecording = status.stage === "recording";
 
   useEffect(() => {
     bridge.init();

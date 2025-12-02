@@ -11,7 +11,6 @@ interface StateEvents {
   results: VoiceInputResult[];
   playback: boolean;
   audioStream: SpeechStream | null;
-  recording: boolean;
 }
 
 export class VoiceInputStore {
@@ -19,7 +18,6 @@ export class VoiceInputStore {
   private results: VoiceInputResult[] = [];
   private audioStream: SpeechStream | null = null;
   private audioPlaying = false;
-  private recording = false;
   private emitter = new SimpleEventEmitter<StateEvents>();
 
   getStatus() {
@@ -38,6 +36,10 @@ export class VoiceInputStore {
     return this.audioPlaying;
   }
 
+  isRecording() {
+    return this.status.stage === "recording";
+  }
+
   subscribe(handler: (status: VoiceCommandStatus) => void) {
     return this.emitter.on("change", handler);
   }
@@ -52,14 +54,6 @@ export class VoiceInputStore {
 
   subscribeAudioStream(handler: (stream: SpeechStream | null) => void) {
     return this.emitter.on("audioStream", handler);
-  }
-
-  subscribeRecording(handler: (recording: boolean) => void) {
-    return this.emitter.on("recording", handler);
-  }
-
-  isRecording() {
-    return this.recording;
   }
 
   setStatus(patch: Partial<VoiceCommandStatus>) {
@@ -100,14 +94,6 @@ export class VoiceInputStore {
     this.emitter.emit("playback", playing);
   }
 
-  setRecording(recording: boolean) {
-    if (this.recording === recording) {
-      return;
-    }
-    this.recording = recording;
-    this.emitter.emit("recording", recording);
-  }
-
   resetButKeepResults() {
     this.resetStatus();
     this.clearAudioStream();
@@ -119,6 +105,5 @@ export class VoiceInputStore {
     this.clearResults();
     this.clearAudioStream();
     this.setAudioPlayback(false);
-    this.setRecording(false);
   }
 }
