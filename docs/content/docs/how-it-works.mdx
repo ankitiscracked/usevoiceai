@@ -1,0 +1,63 @@
+---
+title: How It Works
+description: User journey and architecture flow of the useVoiceAI system
+---
+
+import { Mermaid } from '../../src/components/mermaid';
+
+## User Journey
+
+When a user initiates a voice command, here's how the system orchestrates the entire flow:
+
+<Mermaid>{`sequenceDiagram
+      autonumber
+      participant U as User
+      participant R as React/Vue app<br/>useVoice hook
+      participant WS as WS Server<br/>(/voice-command/ws)
+      participant S as VoiceSession
+      participant STT as Deepgram STT
+      participant A as Agent (Gemini)
+      participant TTS as Cartesia TTS
+      participant P as Browser Audio
+
+      U->>R: Tap "Record"
+      R->>WS: WS connect ?userId=...
+      R->>WS: send {type:"start", audio config}
+      R-->>WS: stream audio chunks
+      WS->>S: attachNodeWebSocketSession(...)
+      S->>STT: forward audio stream
+      STT-->>S: partial transcripts
+      S-->>R: {type:"transcript.partial", transcript}
+      STT-->>S: final transcript
+      S->>A: process(transcript)
+      A-->>S: response text (or error)
+      S->>TTS: send text for synthesis
+      TTS-->>S: stream PCM chunks
+      S-->>R: {type:"tts.start"} + audio chunks
+      R->>P: play audio stream
+      TTS-->>S: done
+      S-->>R: {type:"tts.end"} / {type:"complete", responseText}
+      R-->>U: Show final response + stop playback
+      alt Cancel / Timeout / Error
+          R->>WS: {type:"cancel"} (or socket closes)
+          WS->>S: close session
+          S-->>R: {type:"error"} or {type:"closed"}
+      end`}</Mermaid>
+
+## Process Overview
+
+1. **User Initiates**: User taps the record button in the React/Vue component
+2. **WebSocket Connection**: The `useVoice` hook establishes a WebSocket connection to the server with user context
+3. **Audio Stream**: Client streams audio chunks from the browser's microphone
+4. **Session Attachment**: Server creates a `VoiceSession` and attaches the WebSocket connection
+5. **Speech-to-Text**: Audio is forwarded to Deepgram STT provider:
+   - Sends partial transcripts in real-time
+   - Provides final transcript when speech ends
+6. **AI Processing**: Final transcript is sent to the AI agent (e.g., Gemini) for processing
+7. **Text-to-Speech**: Agent response is sent to TTS provider (Cartesia) for audio synthesis
+8. **Audio Playback**: Synthesized audio is streamed back to client:
+   - `tts.start` event signals playback begin
+   - PCM chunks are streamed for playback
+   - `tts.end` and `complete` events signal completion
+9. **User Display**: Final response text is shown and audio playback completes
+10. **Error Handling**: System gracefully handles cancellation, timeouts, and errors
