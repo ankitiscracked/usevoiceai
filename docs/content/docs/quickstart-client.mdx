@@ -65,4 +65,4 @@ const {
 - `speechStream` is an async iterable of PCM audio; `useSpeech` plays it via Web Audio API.
 - Modes:
   - `manual` (default): you stop with `stopRecording` (or `cancelRecording`). Recording stays open until you do.
-  - `auto`: if your STT provider emits `speech-end` hints, the server finalizes a turn when you stop talking; recording can restart automatically so you can keep speaking. If no hints arrive, it behaves like manual and you should call `stopRecording`.
+  - `auto`: if your STT provider emits `speech.end.hint`, the server finalizes a turn when you stop talking; recording can restart automatically so you can keep speaking. If no hints arrive, it behaves like manual and you should call `stopRecording`.

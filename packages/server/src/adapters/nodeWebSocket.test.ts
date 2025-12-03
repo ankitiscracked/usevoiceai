@@ -74,7 +74,9 @@ describe("attachNodeWsSession", () => {
     ws.emit("message", JSON.stringify({ type: "end" }));
 
     // Should have sent at least ready + command events
-    expect(ws.sent.some((payload) => payload.includes("ready"))).toBe(true);
+    expect(ws.sent.some((payload) => payload.includes("session.ready"))).toBe(
+      true
+    );
   });
 
   it("replaces an existing session for the same user", () => {

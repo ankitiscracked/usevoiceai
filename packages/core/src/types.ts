@@ -57,24 +57,24 @@ export interface VoiceInputResult {
 }
 
 export type VoiceSocketEvent =
-  | { type: "ready"; data?: Record<string, unknown> }
-  | { type: "command-started" }
+  | { type: "session.ready"; data?: Record<string, unknown> }
+  | { type: "session.started" }
   | { type: "transcript.partial"; data?: { transcript?: string } }
   | { type: "transcript.final"; data?: { transcript?: string } }
-  | { type: "tool-message"; data?: { message?: string } }
+  | { type: "agent.message"; data?: { message?: string } }
   | {
-      type: "complete";
+      type: "session.completed";
       data?: Record<string, unknown> & { responseText?: string };
     }
-  | { type: "command-cancelled" }
+  | { type: "session.cancelled" }
   | { type: "tts.start"; data?: Record<string, unknown> }
   | { type: "tts.end"; data?: { errored?: boolean } }
-  | { type: "timeout"; data?: Record<string, unknown> }
-  | { type: "error"; data?: VoiceError }
-  | { type: "closed"; data?: { code?: number; reason?: string } }
-  | { type: "pong"; data?: { timestamp?: number } }
-  | { type: "speech-end.hint"; data?: { reason?: string; confidence?: number } }
-  | { type: "speech-start.hint"; data?: { reason?: string; timestampMs?: number } }
+  | { type: "session.timeout"; data?: Record<string, unknown> }
+  | { type: "session.error"; data?: VoiceError }
+  | { type: "session.closed"; data?: { code?: number; reason?: string } }
+  | { type: "session.pong"; data?: { timestamp?: number } }
+  | { type: "speech.end.hint"; data?: { reason?: string; confidence?: number } }
+  | { type: "speech.start.hint"; data?: { reason?: string; timestampMs?: number } }
   | { type: string; data?: any };
 
 export interface VoiceSocketClientOptions {

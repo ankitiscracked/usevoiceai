@@ -210,7 +210,7 @@ export function createVoiceSession(
 
   function routeManagerEvent(event: VoiceSocketEvent) {
     switch (event.type) {
-      case "command-started":
+      case "session.started":
         startCommand();
         break;
       case "transcript.partial":
@@ -232,7 +232,7 @@ export function createVoiceSession(
           activeCommand.textQueue.close();
         }
         break;
-      case "complete":
+      case "session.completed":
         if (activeCommand) {
           activeCommand.agentQueue.push(event);
           if (!activeCommand.agentComplete.settled()) {
@@ -265,13 +265,13 @@ export function createVoiceSession(
           closeCommand();
         }
         break;
-      case "command-cancelled":
+      case "session.cancelled":
         closeCommand();
         break;
-      case "timeout":
+      case "session.timeout":
         failCommand(new Error("voice session timed out"));
         break;
-      case "error":
+      case "session.error":
         failCommand(
           new Error(
             (event.data as any)?.message ??

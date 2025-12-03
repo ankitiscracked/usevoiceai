@@ -18,7 +18,7 @@ Thin WebSocket wrapper that handles:
 - Sends `start`/`end`/`cancel` JSON and forwards audio to the socket.
 - Respects `speechEndDetection.mode`:
   - `manual` (default): client stops on `stopRecording` or server hint.
-  - `auto`: restarts recording after TTS ends; can stop on server `speech-end.hint`.
+  - `auto`: restarts recording after TTS ends; can stop on server `speech.end.hint`.
 
 ## SpeechStream
 
@@ -28,7 +28,7 @@ An async iterable of PCM chunks. `useSpeech` consumes it and plays via Web Audio
 
 - Accepts client control messages (`start`, `end`, `cancel`, `ping`) and audio.
 - Feeds audio into a `TranscriptionProvider`; forwards partial/final transcripts.
-- Calls your `AgentProcessor.process` with the final transcript; you return `responseText` (string or object), and the SDK emits `complete`/TTS. `send` is available for custom events if you need them.
+- Calls your `AgentProcessor.process` with the final transcript; you return `responseText` (string or object), and the SDK emits `session.completed`/TTS. `send` is available for custom events if you need them.
 - Streams TTS via `SpeechProvider.send`, wrapping binary audio with `tts.start` / `tts.end`. The returned `SpeechStream` is an async iterable of audio chunks if you want to tap the stream yourself.
 - Auto speech-end: if the provider signals it and mode is `auto`, it finalizes the turn without waiting for `end`. If your provider never emits `speech-end`, an “auto” client behaves like manual until it sends `end`.
 - Identity vs session: `userId` is treated as the actor identity (Node/DO adapters replace any existing session for that user). Add your own session id if you want multiple concurrent sessions per user.

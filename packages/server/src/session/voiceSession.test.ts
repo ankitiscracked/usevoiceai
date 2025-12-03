@@ -114,9 +114,9 @@ describe("VoiceSessionManager", () => {
     );
     await session.handleMessage(JSON.stringify({ type: "end" }));
 
-    expect(sendJson).toHaveBeenCalledWith({ type: "command-started" });
+    expect(sendJson).toHaveBeenCalledWith({ type: "session.started" });
     expect(sendJson).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "complete" })
+      expect.objectContaining({ type: "session.completed" })
     );
   });
 
@@ -153,7 +153,7 @@ describe("VoiceSessionManager", () => {
     await Promise.resolve();
 
     expect(sendJson).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "speech-end.hint" })
+      expect.objectContaining({ type: "speech.end.hint" })
     );
     expect(sendJson).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -162,7 +162,7 @@ describe("VoiceSessionManager", () => {
       })
     );
     expect(sendJson).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "complete" })
+      expect.objectContaining({ type: "session.completed" })
     );
   });
 
@@ -237,7 +237,7 @@ describe("VoiceSessionManager", () => {
         return;
       }
       await this.pending.send({
-        type: "complete",
+        type: "session.completed",
         data: {
           responseText: responseText ?? `response:${this.pending.transcript}`,
         },
@@ -285,7 +285,7 @@ describe("VoiceSessionManager", () => {
     await agent.flush("first-response");
 
     const completeEvents = sendJson.mock.calls.filter(
-      ([payload]) => payload?.type === "complete"
+      ([payload]) => payload?.type === "session.completed"
     );
     expect(completeEvents.length).toBe(0);
     const ttsStartEvents = sendJson.mock.calls.filter(

@@ -7,7 +7,7 @@ description: Error event shapes, codes, and how to handle them on client and ser
 
 Voice events use a simple, typed error shape so clients can branch on codes instead of parsing strings.
 
-- Wire shape: `type: "error"`, `data: { code: VoiceErrorCode; message: string; retryable?: boolean; details?: Record<string, unknown>; error?: string }`
+- Wire shape: `type: "session.error"`, `data: { code: VoiceErrorCode; message: string; retryable?: boolean; details?: Record<string, unknown>; error?: string }`
 - Client state: `VoiceCommandStatus` exposes `error` and `errorCode` (mirrors the last error event).
 - Legacy compatibility: `data.error` mirrors `message` so older clients still render something sensible.
 
@@ -59,7 +59,7 @@ useEffect(() => {
 
 ```ts
 socket.onMessage((event) => {
-  if (event.type === "error") {
+  if (event.type === "session.error") {
     const { code, message, retryable } = event.data ?? {};
     console.error("Voice error", code, message);
     if (retryable) {

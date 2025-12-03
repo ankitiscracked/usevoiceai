@@ -80,7 +80,7 @@ export class VoiceSession {
   handleOpen() {
     this.touch();
     this.options.sendJson({
-      type: "ready",
+      type: "session.ready",
       data: {
         timeoutMs: this.options.idleTimeoutMs ?? FIVE_MINUTES_IN_MS,
       },
@@ -130,7 +130,7 @@ export class VoiceSession {
         break;
       case "ping":
         this.options.sendJson({
-          type: "pong",
+          type: "session.pong",
           data: { timestamp: payload.timestamp ?? Date.now() },
         });
         break;
@@ -179,7 +179,7 @@ export class VoiceSession {
         pendingTurns: [],
       };
 
-      this.options.sendJson({ type: "command-started" });
+      this.options.sendJson({ type: "session.started" });
     } catch (error) {
       this.sendError(
         "TRANSCRIPTION_FAILED",
@@ -227,7 +227,7 @@ export class VoiceSession {
     this.activeCommand.acceptingAudio = false;
     this.activeCommand.transcriber.abort("command cancelled");
     this.activeCommand = null;
-    this.options.sendJson({ type: "command-cancelled" });
+    this.options.sendJson({ type: "session.cancelled" });
   }
 
   private async forwardAudioChunk(buffer: ArrayBuffer) {
@@ -290,7 +290,7 @@ export class VoiceSession {
       }
 
       await this.forwardAgentEvent(
-        { type: "complete", data: completeData },
+        { type: "session.completed", data: completeData },
         { allowComplete: true }
       );
     } catch (error) {
@@ -309,11 +309,11 @@ export class VoiceSession {
     event: VoiceSocketEvent,
     options?: { allowComplete?: boolean }
   ) {
-    if (event.type === "complete" && !options?.allowComplete) {
+    if (event.type === "session.completed" && !options?.allowComplete) {
       return;
     }
 
-    if (event.type === "complete" && this.activeCommand) {
+    if (event.type === "session.completed" && this.activeCommand) {
       const turnState = this.activeCommand.pendingTurns.shift();
       if (turnState?.skipResponse) {
         return;
@@ -324,7 +324,7 @@ export class VoiceSession {
 
     this.options.sendJson(event);
 
-    if (event.type !== "complete") {
+    if (event.type !== "session.completed") {
       return;
     }
 
@@ -505,7 +505,7 @@ export class VoiceSession {
     extra?: { retryable?: boolean; details?: Record<string, unknown> }
   ) {
     this.options.sendJson({
-      type: "error",
+      type: "session.error",
       data: {
         code,
         message,
@@ -555,7 +555,7 @@ export class VoiceSession {
       const idleTime = Date.now() - this.lastActivity;
       if (idleTime >= timeout) {
         this.options.sendJson({
-          type: "timeout",
+          type: "session.timeout",
           data: { idleMs: idleTime },
         });
         this.options.closeSocket(4000, "idle timeout");
@@ -588,7 +588,7 @@ export class VoiceSession {
     }
 
     this.options.sendJson({
-      type: "speech-end.hint",
+      type: "speech.end.hint",
       data: {
         reason: hint?.reason,
         confidence: hint?.confidence,

@@ -49,7 +49,7 @@ registerNodeWebSocketServer({
 1) Client sends `start` (with audio config).  
 2) Streams audio chunks.  
 3) Sends `end` (or server auto-detects speech end if the transcription provider emits `speech-end` hints in `auto` mode).  
-4) Agent returns `responseText` (or `{ responseText, ... }`); SDK emits `complete`.  
+4) Agent returns `responseText` (or `{ responseText, ... }`); SDK emits `session.completed`.  
 5) Server streams TTS audio as binary, bookended by `tts.start` / `tts.end`.
 
 ### Environment

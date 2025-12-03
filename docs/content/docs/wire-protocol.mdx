@@ -5,35 +5,232 @@ description: The JSON and binary messages exchanged between client and server.
 
 ## Client → server
 
-- `start`: `{ type: "start", audio?: { encoding?, sampleRate?, channels? }, speechEndDetection?: { mode?: "manual" | "auto"; provider?: string; options?: Record<string, unknown> } }`
-- `end`: `{ type: "end" }` — client-driven completion.
-- `cancel`: `{ type: "cancel" }` — abort the active command.
-- `ping`: `{ type: "ping", timestamp?: number }`
-- Binary: raw audio chunks (ArrayBuffer/WebSocket binary frames).
+**Start** (begin a voice turn; configure audio + speech-end detection)
+
+```json
+{
+  "type": "start",
+  "audio": {
+    "encoding": "...",
+    "sampleRate": 48000,
+    "channels": 1
+  },
+  "speechEndDetection": {
+    "mode": "manual",
+    "provider": "...",
+    "options": {}
+  }
+}
+```
+
+**End** (client-driven completion)
+
+```json
+{
+  "type": "end"
+}
+```
+
+**Cancel** (abort the active command)
+
+```json
+{
+  "type": "cancel"
+}
+```
+
+**Ping** (keepalive/latency check)
+
+```json
+{
+  "type": "ping",
+  "timestamp": 1700000000000
+}
+```
+
+**Binary audio**: raw audio chunks (ArrayBuffer/WebSocket binary frames).
 
 ## Server → client (JSON)
 
-- `ready`: `{ type: "ready", data?: { timeoutMs?: number } }` — session is primed; you can start recording.
-- `command-started`: `{ type: "command-started" }` — server accepted your `start`; audio will be processed under a new command.
-- Transcripts:
-  - Partial: `{ type: "transcript.partial", data?: { transcript?: string } }` — interim text; may change.
-  - Final: `{ type: "transcript.final", data?: { transcript?: string } }` — stable text used for agent processing.
-- Speech hints:
-  - End: `{ type: "speech-end.hint", data?: { reason?: string; confidence?: number } }` — provider thinks speech stopped; in manual mode the server may auto-complete, in auto mode it finalizes a turn.
-  - Start: `{ type: "speech-start.hint", data?: { reason?: string; timestampMs?: number } }` — provider detected speech onset (rarely used in UI).
-- Agent response:
-  - `complete`: `{ type: "complete", data?: { responseText?: string; formattedContent?: { content?: string }; [key: string]: any } }` — final agent turn; TTS follows if configured.
-  - Custom tool/events: `{ type: "tool-message", data?: { message?: string } }` or any custom `type` you emit via `send` — use for live tool updates or UI hints; do not use for final completions.
-- TTS control:
-  - `tts.start`: `{ type: "tts.start", data?: { encoding?: string; sampleRate?: number; channels?: number; mimeType?: string } }` — audio about to stream as binary.
-  - `tts.end`: `{ type: "tts.end", data?: { errored?: boolean; interrupted?: boolean } }` — playback finished or was interrupted/failed.
-- Command lifecycle:
-  - `command-cancelled`: `{ type: "command-cancelled" }` — your `cancel` was acknowledged; reset UI to idle.
-  - `timeout`: `{ type: "timeout", data?: { idleMs?: number } }` — idle timeout reached; expect socket close.
-- Health:
-  - `pong`: `{ type: "pong", data?: { timestamp?: number } }` — response to `ping`; useful for latency/keepalive.
-- Errors:
-  - `error`: `{ type: "error", data: { code: VoiceErrorCode; message: string; retryable?: boolean; details?: Record<string, unknown>; error?: string } }` — inspect `code` for branching; `retryable` hints at safe retries.
+### Session lifecycle
+
+**Ready** (session is primed; you can start recording)
+
+```json
+{
+  "type": "session.ready",
+  "data": {
+    "timeoutMs": 300000
+  }
+}
+```
+
+**Started** (server accepted your `start`; audio will be processed)
+
+```json
+{
+  "type": "session.started"
+}
+```
+
+**Cancelled** (server acknowledged your `cancel`; reset UI to idle)
+
+```json
+{
+  "type": "session.cancelled"
+}
+```
+
+**Completed** (final agent turn; TTS follows if configured)
+
+```json
+{
+  "type": "session.completed",
+  "data": {
+    "responseText": "...",
+    "formattedContent": {
+      "content": "..."
+    }
+  }
+}
+```
+
+**Timeout** (idle timeout reached; expect socket close)
+
+```json
+{
+  "type": "session.timeout",
+  "data": {
+    "idleMs": 300000
+  }
+}
+```
+
+**Error** (typed error for branching)
+
+```json
+{
+  "type": "session.error",
+  "data": {
+    "code": "TRANSCRIPTION_FAILED",
+    "message": "...",
+    "retryable": false,
+    "details": {}
+  }
+}
+```
+
+**Closed** (socket closed; reason/code if available)
+
+```json
+{
+  "type": "session.closed",
+  "data": {
+    "code": 4000,
+    "reason": "idle timeout"
+  }
+}
+```
+
+**Pong** (response to `ping`; useful for latency/keepalive)
+
+```json
+{
+  "type": "session.pong",
+  "data": {
+    "timestamp": 1700000000000
+  }
+}
+```
+
+### Transcripts
+
+**Partial transcript** (interim text; may change)
+
+```json
+{
+  "type": "transcript.partial",
+  "data": {
+    "transcript": "..."
+  }
+}
+```
+
+**Final transcript** (stable text used for agent processing)
+
+```json
+{
+  "type": "transcript.final",
+  "data": {
+    "transcript": "..."
+  }
+}
+```
+
+### Speech hints
+
+**Speech end hint** (provider thinks speech stopped)
+
+```json
+{
+  "type": "speech.end.hint",
+  "data": {
+    "reason": "silence",
+    "confidence": 0.9
+  }
+}
+```
+
+**Speech start hint** (provider detected speech onset)
+
+```json
+{
+  "type": "speech.start.hint",
+  "data": {
+    "reason": "vad",
+    "timestampMs": 1700000000000
+  }
+}
+```
+
+### Agent response (optional intermediate/aux events)
+
+```json
+{
+  "type": "agent.message",
+  "data": {
+    "message": "..."
+  }
+}
+```
+
+### TTS control
+
+**TTS start** (audio about to stream as binary)
+
+```json
+{
+  "type": "tts.start",
+  "data": {
+    "encoding": "linear16",
+    "sampleRate": 48000,
+    "channels": 1,
+    "mimeType": "audio/raw"
+  }
+}
+```
+
+**TTS end** (playback finished or interrupted/failed)
+
+```json
+{
+  "type": "tts.end",
+  "data": {
+    "errored": false,
+    "interrupted": false
+  }
+}
+```
 
 ## Server → client (binary)
 
@@ -46,12 +243,12 @@ description: The JSON and binary messages exchanged between client and server.
 2) Streams audio (binary frames).
 3) Server streams `transcript.partial` as STT produces text.
 4) Client sends `end`.
-5) Server sends `transcript.final`, then `complete`, then `tts.start` → binary audio → `tts.end`.
+5) Server sends `transcript.final`, then `session.completed`, then `tts.start` → binary audio → `tts.end`.
 
 ### Auto mode
 1) Client sends `start` with `speechEndDetection: { mode: "auto", ... }`.
 2) Streams audio; server streams partials.
-3) When the transcription provider emits `speech-end`, server finalizes the turn and sends `transcript.final` → `complete` → TTS.
+3) When the transcription provider emits `speech-end`, server finalizes the turn and sends `transcript.final` → `session.completed` → TTS.
 4) Client may continue recording for the next turn (depending on your UI).
 5) If the provider never emits `speech-end`, auto behaves like manual; client must send `end`.
 
@@ -62,6 +259,6 @@ description: The JSON and binary messages exchanged between client and server.
 
 ## Notes
 
-- `complete` must include `responseText` (or `formattedContent.content`) or the server will treat it as an error.
+- `session.completed` must include `responseText` (or `formattedContent.content`) or the server will treat it as an error.
 - Binary audio from the client is forwarded to your `TranscriptionProvider.send`.
 - Errors use stable `code`s; use `retryable` to signal safe retries.

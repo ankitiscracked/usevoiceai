@@ -13,7 +13,9 @@ const transcription = deepgram("nova-3", { apiKey: process.env.DEEPGRAM_API_KEY 
 
 Options: `keepAliveIntervalMs`, default `encoding/sampleRate/channels`, `clientFactory`. For auto speech-end, pass `speechEndDetection: { mode: "auto" }` from the client; the provider maps to Deepgram VAD/endpointing via `speechEndDetection.options` (e.g., `utteranceEndMs`, `endpointing`, `vadEvents`). If the provider never emits `speech-end` hints, “auto” mode behaves like manual.
 
-> **Workers note:** In Cloudflare/Deno runtimes there is no `process.env`. Always pass `apiKey` from your `env` bindings (e.g., `deepgram("nova-3", { apiKey: env.DEEPGRAM_API_KEY })`).
+<Callout type="info">
+  In Cloudflare/Deno runtimes there is no `process.env`. Always pass `apiKey` from your `env` bindings (e.g., `deepgram("nova-3", { apiKey: env.DEEPGRAM_API_KEY })`).
+</Callout>
 
 ## Cartesia (TTS)
 
@@ -28,7 +30,9 @@ const speech = cartesia("sonic-3", {
 
 Streams PCM s16le 48kHz. You can override `voiceId` or inject a custom `clientFactory`.
 
-> **Workers note:** Provide `apiKey` explicitly from `env` (e.g., `cartesia("sonic-3", { apiKey: env.CARTESIA_API_KEY })`) since `process.env` is not available.
+<Callout type="info">
+  Provide `apiKey` explicitly from `env` (e.g., `cartesia("sonic-3", { apiKey: env.CARTESIA_API_KEY })`) since `process.env` is not available.
+</Callout>
 
 ## Hume (TTS)
 
@@ -44,7 +48,9 @@ const speech = hume({
 
 Requires the optional `hume` dependency at runtime (the helper lazy-loads it).
 
-> **Workers note:** Provide `apiKey` from `env.HUME_API_KEY` in Workers/Deno instead of relying on `process.env`.
+<Callout type="info">
+  Provide `apiKey` from `env.HUME_API_KEY` in Workers/Deno instead of relying on `process.env`.
+</Callout>
 
 ## Bring your own
 
@@ -52,7 +58,7 @@ Implement `TranscriptionProvider`, `SpeechProvider`, or `AgentProcessor` from `@
 
 - `TranscriptionProvider.createStream(options)` → returns a `TranscriptStream` you can `send` audio to and also `for await` transcripts/speech-end hints from. Generic options: `encoding`, `sampleRate`, `channels`, and `speechEndDetection` (mode + free-form `provider/options` for VAD/endpoint tuning).
 - `SpeechProvider.send(text, { onAudioChunk, onClose, onError })` → returns a `SpeechStream` that is itself `for await`-able for audio chunks (and supports optional `cancel()`).
-- `AgentProcessor.process({ transcript, userId, send })` → return a `string` or `{ responseText, ... }` and the SDK will emit a `complete` event and trigger TTS. Use `send` only for auxiliary/custom events (not for `complete`).
+- `AgentProcessor.process({ transcript, userId, send })` → return a `string` or `{ responseText, ... }` and the SDK will emit a `session.completed` event and trigger TTS. Use `send` only for auxiliary/custom events (not for completions).
 
 Plug custom providers into `createVoiceSession`/`createVoiceDurableObject`/`registerNodeWebSocketServer`.
 

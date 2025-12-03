@@ -139,13 +139,13 @@ export class VoiceInputController {
       case "transcript.final":
         this.handleTranscriptUpdate(data?.transcript);
         break;
-      case "tool-message":
+      case "agent.message":
         this.store.setStatus({ stage: "processing" });
         break;
-      case "complete":
+      case "session.completed":
         await this.handleComplete(data);
         break;
-      case "command-cancelled":
+      case "session.cancelled":
         this.store.resetButKeepResults();
         break;
       case "tts.start":
@@ -177,14 +177,14 @@ export class VoiceInputController {
           this.enterRecordingStage();
         }
         break;
-      case "timeout":
+      case "session.timeout":
         this.options.socket.close();
         this.store.resetButKeepResults();
         break;
-      case "speech-end.hint":
+      case "speech.end.hint":
         this.handleSpeechEndHint();
         break;
-      case "error":
+      case "session.error":
         const message =
           (data as any)?.message ??
           (data as any)?.error ??
@@ -198,7 +198,7 @@ export class VoiceInputController {
         this.store.setStatus({ transcript: null });
         this.options.notifications?.error?.(message);
         break;
-      case "closed":
+      case "session.closed":
         this.store.resetStatus();
         this.closeAudioStream();
         this.store.setAudioPlayback(false);

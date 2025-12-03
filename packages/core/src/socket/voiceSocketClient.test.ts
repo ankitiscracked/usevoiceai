@@ -61,9 +61,9 @@ describe("VoiceSocketClient", () => {
 
     const socket = (client as any).socket as MockWebSocket;
     socket.onmessage?.({
-      data: JSON.stringify({ type: "ready" })
+      data: JSON.stringify({ type: "session.ready" })
     } as MessageEvent);
 
-    expect(listener).toHaveBeenCalledWith({ type: "ready" });
+    expect(listener).toHaveBeenCalledWith({ type: "session.ready" });
   });
 });

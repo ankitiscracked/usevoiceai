@@ -53,7 +53,7 @@ export class DemoWebSocket implements WebSocket {
     queueMicrotask(() => {
       this.readyState = DemoWebSocket.OPEN;
       this.onopen?.call(this, new Event("open"));
-      this.sendServerMessage({ type: "ready" });
+      this.sendServerMessage({ type: "session.ready" });
     });
   }
 
@@ -108,7 +108,7 @@ export class DemoWebSocket implements WebSocket {
         this.simulateCompletion();
         break;
       case "cancel":
-        this.sendServerMessage({ type: "command-cancelled" });
+        this.sendServerMessage({ type: "session.cancelled" });
         break;
     }
   }
@@ -120,7 +120,7 @@ export class DemoWebSocket implements WebSocket {
       data: { transcript: "Demo transcript" }
     });
     this.sendServerMessage({
-      type: "complete",
+      type: "session.completed",
       data: {
         intent: "fetch",
         formattedContent: {

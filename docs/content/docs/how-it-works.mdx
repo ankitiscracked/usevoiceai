@@ -36,12 +36,12 @@ When a user initiates a voice command, here's how the system orchestrates the en
       S-->>R: {type:"tts.start"} + audio chunks
       R->>P: play audio stream
       TTS-->>S: done
-      S-->>R: {type:"tts.end"} / {type:"complete", responseText}
+      S-->>R: {type:"tts.end"} / {type:"session.completed", responseText}
       R-->>U: Show final response + stop playback
       alt Cancel / Timeout / Error
           R->>WS: {type:"cancel"} (or socket closes)
           WS->>S: close session
-          S-->>R: {type:"error"} or {type:"closed"}
+          S-->>R: {type:"session.error"} or {type:"session.closed"}
       end`}</Mermaid>
 
 ## Process Overview
@@ -58,6 +58,6 @@ When a user initiates a voice command, here's how the system orchestrates the en
 8. **Audio Playback**: Synthesized audio is streamed back to client:
    - `tts.start` event signals playback begin
    - PCM chunks are streamed for playback
-   - `tts.end` and `complete` events signal completion
+   - `tts.end` and `session.completed` signal completion
 9. **User Display**: Final response text is shown and audio playback completes
 10. **Error Handling**: System gracefully handles cancellation, timeouts, and errors

@@ -51,7 +51,7 @@ export class VoiceSocketClient {
     const offMessage = this.emitter.on("message", (payload) => handler(payload));
     const offBinary = this.emitter.on("binary", (payload) => handler(payload));
     const offClose = this.emitter.on("close", (payload) =>
-      handler({ type: "closed", data: payload })
+      handler({ type: "session.closed", data: payload })
     );
     return () => {
       offMessage();

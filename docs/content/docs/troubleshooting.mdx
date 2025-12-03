@@ -6,8 +6,8 @@ description: Quick fixes for common setup issues.
 - **MediaDevices API is not available**: Serve over HTTPS or `localhost`; allow mic permission; ensure a mic is present.
 - **Unable to resolve websocket url**: Set `socketOptions.url` or `buildUrl()` in the client; check `.env` for `VITE_USEVOICEAI_WS_URL`.
 - **Socket closes with 4000/idle timeout**: Bump `idleTimeoutMs` on client/server; keep the session active or reconnect.
-- **A command is already in progress**: Wait for `tts.end`/`complete`, or call `cancelRecording()` before starting again.
+- **A command is already in progress**: Wait for `tts.end`/`session.completed`, or call `cancelRecording()` before starting again.
 - **TTS stops when I speak again**: Expected—new transcript interrupts TTS. Disable auto speech-end or debounce new turns if undesired.
-- **Auto mode never completes**: Your STT provider isn’t emitting `speech-end` hints; keep using manual mode or enable VAD/endpointing via `speechEndDetection.options`.
+- **Auto mode never completes**: Your STT provider isn’t emitting `speech.end.hint`; keep using manual mode or enable VAD/endpointing via `speechEndDetection.options`.
 - **Provider apiKey missing errors**: Set `DEEPGRAM_API_KEY`, `CARTESIA_API_KEY`, `HUME_API_KEY` in your server environment.
 - **No audio playback**: Ensure Web Audio allowed; call `useSpeech` only after a user gesture in browsers that require it.

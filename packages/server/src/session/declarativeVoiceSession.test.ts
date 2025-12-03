@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { VoiceSocketEvent } from "@usevoiceai/core";
 import type {
   AgentProcessor,
   TranscriptionProvider,
@@ -161,7 +162,9 @@ describe("createVoiceWebSocketSession", () => {
       "agent:hello world"
     );
 
-    const completeEvent = sentEvents.find((evt) => evt.type === "complete");
+    const completeEvent = sentEvents.find(
+      (evt) => evt.type === "session.completed"
+    );
     expect(completeEvent?.data?.responseText).toBe("agent:hello world");
     expect(binaryChunks).toHaveLength(1);
   });

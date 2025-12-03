@@ -38,7 +38,7 @@ describe("VoiceInputController", () => {
     expect(store.getStatus().transcript).toBe("hello world");
 
     socket.emit({
-      type: "complete",
+      type: "session.completed",
       data: { responseText: "hello agent" },
     });
 
@@ -138,7 +138,7 @@ describe("VoiceInputController", () => {
       store,
     });
 
-    socket.emit({ type: "speech-end.hint" });
+    socket.emit({ type: "speech.end.hint" });
 
     expect(store.getStatus().stage).toBe("processing");
     expect(stopSpy).toHaveBeenCalled();
@@ -160,7 +160,7 @@ describe("VoiceInputController", () => {
       speechEndDetection: { mode: "auto" },
     });
 
-    socket.emit({ type: "speech-end.hint" });
+    socket.emit({ type: "speech.end.hint" });
 
     expect(store.getStatus().stage).toBe("processing");
     expect(stopSpy).not.toHaveBeenCalled();
@@ -179,7 +179,7 @@ describe("VoiceInputController", () => {
     });
 
     // Simulate speech end hint transitioning to processing
-    socket.emit({ type: "speech-end.hint" });
+    socket.emit({ type: "speech.end.hint" });
     expect(store.getStatus().stage).toBe("processing");
 
     socket.emit({
