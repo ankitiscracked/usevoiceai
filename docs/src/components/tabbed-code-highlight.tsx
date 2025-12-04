@@ -80,6 +80,6 @@ export function TabbedCodeHighlight({ snippets }: TabbedCodeHighlightProps) {
           </div>
         ))}
       </motion.div>
-          </div>
-          );
-          }
+    </div>
+  );
+}

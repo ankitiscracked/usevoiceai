@@ -54,9 +54,9 @@ function Home() {
 
   return (
     <HomeLayout {...baseOptions()} className="">
-      <div className="flex flex-col lg:flex-row items-center justify-between lg:max-w-[80%] xl:w-fd-container 2xl:max-w-fd-container mx-auto px-4 min-h-[60vh] gap-12 lg:gap-24 mt-12">
-        <div className="flex-1 shrink-0 text-center lg:text-left w-1/2">
-          <h1 className="font text-3xl mb-4 text-left tracking-tight">
+      <div className="flex flex-col lg:flex-row items-center lg:justify-between lg:max-w-[80%] xl:w-fd-container 2xl:max-w-fd-container max-w-full mx-auto px-4 min-h-[60vh] gap-12 lg:gap-24 mt-16 lg:mt-12">
+        <div className="text-center lg:text-left lg:w-1/2 min-w-0">
+          <h1 className="font text-3xl mb-4 text-center lg:text-left tracking-tight">
             The Typescript toolkit for ambitious voice AI apps
           </h1>
           <Link
@@ -69,7 +69,7 @@ function Home() {
             Get Started
           </Link>
         </div>
-        <div className="w-1/2">
+        <div className="lg:w-1/2 min-w-0 max-w-full">
           <TabbedCodeHighlight snippets={snippets} />
         </div>
       </div>

@@ -71,7 +71,7 @@ Some of the technical problems it solves:
 
 `usevoiceai` is designed to be **pluggable** and **composable**.
 
-You can use any provider for transcription and speech generation you want. We have a few providers out of the box:
+You can use any provider for transcription and speech generation you want. We have a few providers out of the box (more coming soon):
 
 - **Speech-To-Text**: [Deepgram](https://deepgram.com/)
 - **Text-To-Speech**: [Cartesia](https://cartesia.ai/), [Hume](https://hume.ai/)
@@ -93,5 +93,5 @@ On the transport layer, we have a few adapters for popular server runtimes:
 
 ## Focus on proving great DX
 
-I've meticulously obsessed over the DX of this project. I'm don't shy from accepting that the design of AI SDK has been a huge influence.
+I've meticulously obsessed over the DX of this project. I don't shy from accepting that the design of AI SDK has been a huge influence.
 The client hooks are intuitive and expose as much as needed to get you up and running quickly. The server is framework agnostic and provides a default helper implementations for popular STT and TTS providers. The providers are pluggable and you can provide your own implementations. For example, if you prefer to use local voice models.
